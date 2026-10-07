@@ -4,3 +4,13 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+target/
+project/target/
+project/project/
+.bsp/
+.metals/
+.bloop/
+metals.sbt
+.idea/
+.vscode/
+.superpowers/

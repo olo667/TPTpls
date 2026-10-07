@@ -1,0 +1,29 @@
+!error UnexpectedToken(Lower_word) 0..11 "expected a record such as fof(...) or include(...), found 'hello'"
+  Lower_word "hello" 0..5
+  Lower_word "world" 6..11
+tptp_input 12..29
+  annotated_formula 12..29
+    fof_annotated 12..29
+      'fof(' "fof(" 12..16
+      name 16..17
+        atomic_word 16..17
+          Lower_word "a" 16..17
+      ',' "," 17..18
+      formula_role 19..24
+        Lower_word "axiom" 19..24
+      ',' "," 24..25
+      fof_formula 26..27
+        fof_logic_formula 26..27
+          fof_unitary_formula 26..27
+            fof_atomic_formula 26..27
+              fof_plain_atomic_formula 26..27
+                fof_plain_term 26..27
+                  constant 26..27
+                    functor 26..27
+                      atomic_word 26..27
+                        Lower_word "p" 26..27
+      annotations 27..27
+        nothing 27..27
+      ').' ")." 27..29
+-- errors --
+UnexpectedToken(Lower_word) 0..11 expected a record such as fof(...) or include(...), found 'hello'

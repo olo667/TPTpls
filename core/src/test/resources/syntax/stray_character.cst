@@ -1,0 +1,55 @@
+tptp_input 0..21
+  annotated_formula 0..21
+    fof_annotated 0..21
+      'fof(' "fof(" 0..4
+      name 4..5
+        atomic_word 4..5
+          Lower_word "a" 4..5
+      ',' "," 5..6
+      formula_role 7..12
+        Lower_word "axiom" 7..12
+      ',' "," 12..13
+      fof_formula 14..15
+        fof_logic_formula 14..15
+          fof_unitary_formula 14..15
+            fof_atomic_formula 14..15
+              fof_plain_atomic_formula 14..15
+                fof_plain_term 14..15
+                  constant 14..15
+                    functor 14..15
+                      atomic_word 14..15
+                        Lower_word "p" 14..15
+      annotations 15..15
+        nothing 15..15
+      !error UnexpectedToken(Printable_char) 16..17 "unexpected '§'"
+        Printable_char "§" 16..17
+      !error UnexpectedToken(Lower_word) 18..19 "unexpected 'q'"
+        Lower_word "q" 18..19
+      ').' ")." 19..21
+tptp_input 22..39
+  annotated_formula 22..39
+    fof_annotated 22..39
+      'fof(' "fof(" 22..26
+      name 26..27
+        atomic_word 26..27
+          Lower_word "b" 26..27
+      ',' "," 27..28
+      formula_role 29..34
+        Lower_word "axiom" 29..34
+      ',' "," 34..35
+      fof_formula 36..37
+        fof_logic_formula 36..37
+          fof_unitary_formula 36..37
+            fof_atomic_formula 36..37
+              fof_plain_atomic_formula 36..37
+                fof_plain_term 36..37
+                  constant 36..37
+                    functor 36..37
+                      atomic_word 36..37
+                        Lower_word "q" 36..37
+      annotations 37..37
+        nothing 37..37
+      ').' ")." 37..39
+-- errors --
+UnexpectedToken(Printable_char) 16..17 unexpected '§'
+UnexpectedToken(Lower_word) 18..19 unexpected 'q'

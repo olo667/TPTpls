@@ -1,0 +1,54 @@
+tptp_input 0..30
+  annotated_formula 0..17
+    fof_annotated 0..17
+      'fof(' "fof(" 0..4
+      name 4..5
+        atomic_word 4..5
+          Lower_word "a" 4..5
+      ',' "," 5..6
+      formula_role 7..12
+        Lower_word "axiom" 7..12
+      ',' "," 12..13
+      fof_formula 14..15
+        fof_logic_formula 14..15
+          fof_unitary_formula 14..15
+            fof_atomic_formula 14..15
+              fof_plain_atomic_formula 14..15
+                fof_plain_term 14..15
+                  constant 14..15
+                    functor 14..15
+                      atomic_word 14..15
+                        Lower_word "p" 14..15
+      annotations 15..15
+        nothing 15..15
+      ').' ")." 15..17
+  !error UnexpectedToken(Lower_word) 18..30 "unexpected 'this' after the end of the record"
+    Lower_word "this" 18..22
+    Lower_word "is" 23..25
+    Lower_word "junk" 26..30
+tptp_input 31..48
+  annotated_formula 31..48
+    fof_annotated 31..48
+      'fof(' "fof(" 31..35
+      name 35..36
+        atomic_word 35..36
+          Lower_word "b" 35..36
+      ',' "," 36..37
+      formula_role 38..43
+        Lower_word "axiom" 38..43
+      ',' "," 43..44
+      fof_formula 45..46
+        fof_logic_formula 45..46
+          fof_unitary_formula 45..46
+            fof_atomic_formula 45..46
+              fof_plain_atomic_formula 45..46
+                fof_plain_term 45..46
+                  constant 45..46
+                    functor 45..46
+                      atomic_word 45..46
+                        Lower_word "q" 45..46
+      annotations 46..46
+        nothing 46..46
+      ').' ")." 46..48
+-- errors --
+UnexpectedToken(Lower_word) 18..30 unexpected 'this' after the end of the record

@@ -1,0 +1,52 @@
+tptp_input 0..20
+  annotated_formula 0..20
+    fof_annotated 0..20
+      'fof(' "fof(" 0..4
+      !error UnexpectedToken(''') 4..5 "unexpected '''"
+        ''' "'" 4..5
+      name 5..8
+        atomic_word 5..8
+          Lower_word "abc" 5..8
+      ',' "," 8..9
+      formula_role 10..15
+        Lower_word "axiom" 10..15
+      ',' "," 15..16
+      fof_formula 17..18
+        fof_logic_formula 17..18
+          fof_unitary_formula 17..18
+            fof_atomic_formula 17..18
+              fof_plain_atomic_formula 17..18
+                fof_plain_term 17..18
+                  constant 17..18
+                    functor 17..18
+                      atomic_word 17..18
+                        Lower_word "p" 17..18
+      annotations 18..18
+        nothing 18..18
+      ').' ")." 18..20
+tptp_input 21..38
+  annotated_formula 21..38
+    fof_annotated 21..38
+      'fof(' "fof(" 21..25
+      name 25..26
+        atomic_word 25..26
+          Lower_word "b" 25..26
+      ',' "," 26..27
+      formula_role 28..33
+        Lower_word "axiom" 28..33
+      ',' "," 33..34
+      fof_formula 35..36
+        fof_logic_formula 35..36
+          fof_unitary_formula 35..36
+            fof_atomic_formula 35..36
+              fof_plain_atomic_formula 35..36
+                fof_plain_term 35..36
+                  constant 35..36
+                    functor 35..36
+                      atomic_word 35..36
+                        Lower_word "q" 35..36
+      annotations 36..36
+        nothing 36..36
+      ').' ")." 36..38
+-- errors --
+UnexpectedToken(''') 4..5 unexpected '''

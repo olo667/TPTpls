@@ -1,0 +1,64 @@
+tptp_input 0..21
+  annotated_formula 0..21
+    fof_annotated 0..21
+      'fof(' "fof(" 0..4
+      name 4..5
+        Integer "1" 4..5
+      ',' "," 5..6
+      formula_role 7..12
+        Lower_word "axiom" 7..12
+      ',' "," 12..13
+      fof_formula 14..19
+        fof_logic_formula 14..19
+          fof_unitary_formula 14..19
+            fof_atomic_formula 14..19
+              fof_plain_atomic_formula 14..19
+                fof_plain_term 14..19
+                  functor 14..15
+                    atomic_word 14..15
+                      Lower_word "p" 14..15
+                  '(' "(" 15..16
+                  fof_arguments 16..18
+                    fof_term 16..18
+                      fof_function_term 16..18
+                        fof_defined_term 16..18
+                          defined_term 16..18
+                            number 16..18
+                              Integer "42" 16..18
+                  ')' ")" 18..19
+      annotations 19..19
+        nothing 19..19
+      ').' ")." 19..21
+tptp_input 22..43
+  annotated_formula 22..43
+    fof_annotated 22..43
+      'fof(' "fof(" 22..26
+      name 26..27
+        atomic_word 26..27
+          Lower_word "b" 26..27
+      ',' "," 27..28
+      formula_role 29..34
+        Lower_word "axiom" 29..34
+      ',' "," 34..35
+      fof_formula 36..41
+        fof_logic_formula 36..41
+          fof_unitary_formula 36..41
+            fof_atomic_formula 36..41
+              fof_plain_atomic_formula 36..41
+                fof_plain_term 36..41
+                  functor 36..37
+                    atomic_word 36..37
+                      Lower_word "q" 36..37
+                  '(' "(" 37..38
+                  fof_arguments 38..40
+                    fof_term 38..40
+                      fof_function_term 38..40
+                        fof_defined_term 38..40
+                          defined_term 38..40
+                            number 38..40
+                              Integer "-1" 38..40
+                  ')' ")" 40..41
+      annotations 41..41
+        nothing 41..41
+      ').' ")." 41..43
+-- errors --

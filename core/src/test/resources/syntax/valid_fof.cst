@@ -1,0 +1,130 @@
+tptp_input 28..68
+  annotated_formula 28..68
+    fof_annotated 28..68
+      'fof(' "fof(" 28..32
+      name 32..35
+        atomic_word 32..35
+          Lower_word "ax1" 32..35
+      ',' "," 35..36
+      formula_role 37..42
+        Lower_word "axiom" 37..42
+      ',' "," 42..43
+      fof_formula 44..66
+        fof_logic_formula 44..66
+          fof_unitary_formula 44..66
+            fof_quantified_formula 44..66
+              fof_quantifier 44..45
+                '!' "!" 44..45
+              '[' "[" 46..47
+              fof_variable_list 47..48
+                variable 47..48
+                  Upper_word "X" 47..48
+              ']' "]" 48..49
+              ':' ":" 50..51
+              fof_unit_formula 52..66
+                fof_unitary_formula 52..66
+                  '(' "(" 52..53
+                  fof_logic_formula 53..65
+                    fof_binary_formula 53..65
+                      fof_binary_pair 53..65
+                        fof_unit_formula 53..57
+                          fof_unitary_formula 53..57
+                            fof_atomic_formula 53..57
+                              fof_plain_atomic_formula 53..57
+                                fof_plain_term 53..57
+                                  functor 53..54
+                                    atomic_word 53..54
+                                      Lower_word "p" 53..54
+                                  '(' "(" 54..55
+                                  fof_arguments 55..56
+                                    fof_term 55..56
+                                      variable 55..56
+                                        Upper_word "X" 55..56
+                                  ')' ")" 56..57
+                        nonassoc_connective 58..60
+                          '=>' "=>" 58..60
+                        fof_unit_formula 61..65
+                          fof_unitary_formula 61..65
+                            fof_atomic_formula 61..65
+                              fof_plain_atomic_formula 61..65
+                                fof_plain_term 61..65
+                                  functor 61..62
+                                    atomic_word 61..62
+                                      Lower_word "q" 61..62
+                                  '(' "(" 62..63
+                                  fof_arguments 63..64
+                                    fof_term 63..64
+                                      variable 63..64
+                                        Upper_word "X" 63..64
+                                  ')' ")" 64..65
+                  ')' ")" 65..66
+      annotations 66..66
+        nothing 66..66
+      ').' ")." 66..68
+tptp_input 69..106
+  annotated_formula 69..106
+    fof_annotated 69..106
+      'fof(' "fof(" 69..73
+      name 73..86
+        atomic_word 73..86
+          Single_quoted "'quoted name'" 73..86
+      ',' "," 86..87
+      formula_role 88..98
+        Lower_word "hypothesis" 88..98
+      ',' "," 98..99
+      fof_formula 100..104
+        fof_logic_formula 100..104
+          fof_unitary_formula 100..104
+            fof_atomic_formula 100..104
+              fof_plain_atomic_formula 100..104
+                fof_plain_term 100..104
+                  functor 100..101
+                    atomic_word 100..101
+                      Lower_word "p" 100..101
+                  '(' "(" 101..102
+                  fof_arguments 102..103
+                    fof_term 102..103
+                      fof_function_term 102..103
+                        fof_plain_term 102..103
+                          constant 102..103
+                            functor 102..103
+                              atomic_word 102..103
+                                Lower_word "a" 102..103
+                  ')' ")" 103..104
+      annotations 104..104
+        nothing 104..104
+      ').' ")." 104..106
+tptp_input 107..135
+  annotated_formula 107..135
+    fof_annotated 107..135
+      'fof(' "fof(" 107..111
+      name 111..115
+        atomic_word 111..115
+          Lower_word "goal" 111..115
+      ',' "," 115..116
+      formula_role 117..127
+        Lower_word "conjecture" 117..127
+      ',' "," 127..128
+      fof_formula 129..133
+        fof_logic_formula 129..133
+          fof_unitary_formula 129..133
+            fof_atomic_formula 129..133
+              fof_plain_atomic_formula 129..133
+                fof_plain_term 129..133
+                  functor 129..130
+                    atomic_word 129..130
+                      Lower_word "q" 129..130
+                  '(' "(" 130..131
+                  fof_arguments 131..132
+                    fof_term 131..132
+                      fof_function_term 131..132
+                        fof_plain_term 131..132
+                          constant 131..132
+                            functor 131..132
+                              atomic_word 131..132
+                                Lower_word "a" 131..132
+                  ')' ")" 132..133
+      annotations 133..133
+        nothing 133..133
+      ').' ")." 133..135
+-- errors --

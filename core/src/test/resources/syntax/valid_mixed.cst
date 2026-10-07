@@ -1,0 +1,186 @@
+tptp_input 0..30
+  include 0..30
+    'include(' "include(" 0..8
+    file_name 8..28
+      atomic_word 8..28
+        Single_quoted "'Axioms/SET001+0.ax'" 8..28
+    include_optionals 28..28
+      nothing 28..28
+    ').' ")." 28..30
+tptp_input 31..73
+  include 31..73
+    'include(' "include(" 31..39
+    file_name 39..59
+      atomic_word 39..59
+        Single_quoted "'Axioms/SET001+1.ax'" 39..59
+    include_optionals 59..71
+      ',' "," 59..60
+      formula_selection 61..71
+        '[' "[" 61..62
+        name_list 62..70
+          name 62..65
+            atomic_word 62..65
+              Lower_word "ax1" 62..65
+          ',' "," 65..66
+          name_list 67..70
+            name 67..70
+              atomic_word 67..70
+                Lower_word "ax2" 67..70
+        ']' "]" 70..71
+    ').' ")." 71..73
+tptp_input 74..94
+  annotated_formula 74..94
+    thf_annotated 74..94
+      'thf(' "thf(" 74..78
+      name 78..79
+        atomic_word 78..79
+          Lower_word "t" 78..79
+      ',' "," 79..80
+      formula_role 81..85
+        Lower_word "type" 81..85
+      ',' "," 85..86
+      thf_formula 87..92
+        thf_atom_typing 87..92
+          typeable_atom 87..88
+            constant 87..88
+              functor 87..88
+                atomic_word 87..88
+                  Lower_word "c" 87..88
+          ':' ":" 88..89
+          thf_top_level_type 90..92
+            thf_unitary_type 90..92
+              thf_unitary_formula 90..92
+                thf_atomic_formula 90..92
+                  thf_defined_atomic 90..92
+                    defined_constant 90..92
+                      defined_functor 90..92
+                        atomic_defined_word 90..92
+                          Dollar_word "$i" 90..92
+      annotations 92..92
+        nothing 92..92
+      ').' ")." 92..94
+tptp_input 95..145
+  annotated_formula 95..145
+    tff_annotated 95..145
+      'tff(' "tff(" 95..99
+      name 99..100
+        atomic_word 99..100
+          Lower_word "f" 99..100
+      ',' "," 100..101
+      formula_role 102..107
+        Lower_word "axiom" 102..107
+      ',' "," 107..108
+      tff_formula 109..143
+        tff_logic_formula 109..143
+          tff_unitary_formula 109..143
+            tff_quantified_formula 109..143
+              tff_quantifier 109..110
+                fof_quantifier 109..110
+                  '!' "!" 109..110
+              '[' "[" 111..112
+              tff_variable_list 112..119
+                tff_variable 112..119
+                  tff_typed_variable 112..119
+                    variable 112..113
+                      Upper_word "X" 112..113
+                    ':' ":" 113..114
+                    tff_atomic_type 115..119
+                      defined_type 115..119
+                        atomic_defined_word 115..119
+                          Dollar_word "$int" 115..119
+              ']' "]" 119..120
+              ':' ":" 121..122
+              tff_unit_formula 123..143
+                tff_unitary_formula 123..143
+                  tff_atomic_formula 123..143
+                    tff_defined_atomic 123..143
+                      tff_defined_plain 123..143
+                        defined_functor 123..128
+                          atomic_defined_word 123..128
+                            Dollar_word "$less" 123..128
+                        '(' "(" 128..129
+                        tff_arguments 129..142
+                          tff_term 129..130
+                            tff_logic_formula 129..130
+                              tff_unitary_formula 129..130
+                                txf_unitary_formula 129..130
+                                  variable 129..130
+                                    Upper_word "X" 129..130
+                          comma_tff_term 130..142
+                            ',' "," 130..131
+                            tff_term 132..142
+                              tff_logic_formula 132..142
+                                tff_unitary_formula 132..142
+                                  tff_atomic_formula 132..142
+                                    tff_defined_atomic 132..142
+                                      tff_defined_plain 132..142
+                                        defined_functor 132..136
+                                          atomic_defined_word 132..136
+                                            Dollar_word "$sum" 132..136
+                                        '(' "(" 136..137
+                                        tff_arguments 137..141
+                                          tff_term 137..138
+                                            tff_logic_formula 137..138
+                                              tff_unitary_formula 137..138
+                                                txf_unitary_formula 137..138
+                                                  variable 137..138
+                                                    Upper_word "X" 137..138
+                                          comma_tff_term 138..141
+                                            ',' "," 138..139
+                                            tff_term 140..141
+                                              tff_logic_formula 140..141
+                                                tff_unitary_formula 140..141
+                                                  txf_unitary_formula 140..141
+                                                    variable 140..141
+                                                      Upper_word "X" 140..141
+                                        ')' ")" 141..142
+                        ')' ")" 142..143
+      annotations 143..143
+        nothing 143..143
+      ').' ")." 143..145
+tptp_input 146..176
+  annotated_formula 146..176
+    cnf_annotated 146..176
+      'cnf(' "cnf(" 146..150
+      name 150..152
+        atomic_word 150..152
+          Lower_word "c1" 150..152
+      ',' "," 152..153
+      formula_role 154..159
+        Lower_word "axiom" 154..159
+      ',' "," 159..160
+      cnf_formula 161..174
+        cnf_disjunction 161..174
+          cnf_disjunction 161..165
+            cnf_literal 161..165
+              fof_atomic_formula 161..165
+                fof_plain_atomic_formula 161..165
+                  fof_plain_term 161..165
+                    functor 161..162
+                      atomic_word 161..162
+                        Lower_word "p" 161..162
+                    '(' "(" 162..163
+                    fof_arguments 163..164
+                      fof_term 163..164
+                        variable 163..164
+                          Upper_word "X" 163..164
+                    ')' ")" 164..165
+          Vline "|" 166..167
+          cnf_literal 168..174
+            '~' "~" 168..169
+            fof_atomic_formula 170..174
+              fof_plain_atomic_formula 170..174
+                fof_plain_term 170..174
+                  functor 170..171
+                    atomic_word 170..171
+                      Lower_word "q" 170..171
+                  '(' "(" 171..172
+                  fof_arguments 172..173
+                    fof_term 172..173
+                      variable 172..173
+                        Upper_word "X" 172..173
+                  ')' ")" 173..174
+      annotations 174..174
+        nothing 174..174
+      ').' ")." 174..176
+-- errors --

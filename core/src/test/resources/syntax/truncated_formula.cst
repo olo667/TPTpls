@@ -1,0 +1,69 @@
+tptp_input 0..21
+  annotated_formula 0..21
+    fof_annotated 0..21
+      'fof(' "fof(" 0..4
+      name 4..5
+        atomic_word 4..5
+          Lower_word "a" 4..5
+      ',' "," 5..6
+      formula_role 7..12
+        Lower_word "axiom" 7..12
+      ',' "," 12..13
+      fof_formula 14..19
+        fof_logic_formula 14..19
+          fof_unitary_formula 14..19
+            '(' "(" 14..15
+            fof_logic_formula 15..19
+              fof_binary_formula 15..19
+                fof_binary_list 15..19
+                  fof_and_formula 15..19
+                    fof_unit_formula 15..16
+                      fof_unitary_formula 15..16
+                        fof_atomic_formula 15..16
+                          fof_plain_atomic_formula 15..16
+                            fof_plain_term 15..16
+                              constant 15..16
+                                functor 15..16
+                                  atomic_word 15..16
+                                    Lower_word "p" 15..16
+                    '&' "&" 17..18
+                    fof_unit_formula 19..19
+                      fof_unitary_formula 19..19
+                        fof_atomic_formula 19..19
+                          fof_plain_atomic_formula 19..19
+                            fof_plain_term 19..19
+                              constant 19..19
+                                functor 19..19
+                                  atomic_word 19..19
+                                    !error MissingElement(formula) 19..19 "missing formula"
+            !error MissingToken(')') 19..19 "missing ')'"
+      annotations 18..18
+        nothing 18..18
+      ').' ")." 19..21
+tptp_input 22..39
+  annotated_formula 22..39
+    fof_annotated 22..39
+      'fof(' "fof(" 22..26
+      name 26..27
+        atomic_word 26..27
+          Lower_word "b" 26..27
+      ',' "," 27..28
+      formula_role 29..34
+        Lower_word "axiom" 29..34
+      ',' "," 34..35
+      fof_formula 36..37
+        fof_logic_formula 36..37
+          fof_unitary_formula 36..37
+            fof_atomic_formula 36..37
+              fof_plain_atomic_formula 36..37
+                fof_plain_term 36..37
+                  constant 36..37
+                    functor 36..37
+                      atomic_word 36..37
+                        Lower_word "q" 36..37
+      annotations 37..37
+        nothing 37..37
+      ').' ")." 37..39
+-- errors --
+MissingElement(formula) 19..19 missing formula
+MissingToken(')') 19..19 missing ')'
