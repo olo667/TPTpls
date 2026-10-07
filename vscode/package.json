@@ -1,0 +1,20 @@
+{
+  "name": "tptp-lsp",
+  "displayName": "TPTP Language Support",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.75.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:tptp"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "tptp",
+        "aliases": ["TPTP"],
+        "extensions": [".p", ".ax", ".tptp"]
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  }
+}
