@@ -26,6 +26,17 @@ Includes are resolved against the including file's directory, then each workspac
 
 ## Neovim
 
+To try the server without touching your own configuration, build the jar and start Neovim with the
+bundled test config (filetype detection, minimal highlighting, keys for definition/outline/diagnostics):
+
+```sh
+sbt server/assembly
+nvim -u editors/nvim/init.lua path/to/problem.p
+```
+
+It uses `$TPTP`, or `~/.cache/tptp-lsp/TPTP-v9.3.1` from `scripts/fetch-tptp.sh`, as the TPTP root.
+To add the server to your own configuration instead:
+
 ```lua
 vim.filetype.add({ extension = { p = 'tptp', ax = 'tptp' } })
 vim.api.nvim_create_autocmd('FileType', {
