@@ -11,10 +11,12 @@ import org.eclipse.lsp4j.services.{LanguageClient, LanguageServer}
 final class TestClient(config: JsonObject) extends LanguageClient {
   val diagnostics = new LinkedBlockingQueue[l.PublishDiagnosticsParams]()
   val messages = new LinkedBlockingQueue[l.MessageParams]()
+  /** Only the messages shown to the user (window/showMessage); `messages` has both kinds. */
+  val shown = new LinkedBlockingQueue[l.MessageParams]()
   val registrations = new LinkedBlockingQueue[l.RegistrationParams]()
   override def telemetryEvent(o: Object): Unit = ()
   override def publishDiagnostics(p: l.PublishDiagnosticsParams): Unit = diagnostics.put(p)
-  override def showMessage(p: l.MessageParams): Unit = messages.put(p)
+  override def showMessage(p: l.MessageParams): Unit = { shown.put(p); messages.put(p) }
   override def logMessage(p: l.MessageParams): Unit = messages.put(p)
   override def showMessageRequest(p: l.ShowMessageRequestParams): CompletableFuture[l.MessageActionItem] =
     CompletableFuture.completedFuture(null)

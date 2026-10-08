@@ -61,8 +61,9 @@ class DiagnosticsProtocolSuite extends munit.FunSuite {
     assertEquals(p.getDiagnostics.asScala.map(_.getCode.getLeft).toVector, Vector("include-not-found"))
   }
 
-  session.test("without a TPTP root the server says so once") { s =>
+  session.test("without a TPTP root the server logs it, without interrupting the user") { s =>
     val m = s.client.messages.poll(5, TimeUnit.SECONDS)
     assert(m != null && m.getType == l.MessageType.Info && m.getMessage.contains("No TPTP root"), m)
+    assertEquals(Option(s.client.shown.poll(500, TimeUnit.MILLISECONDS)), None)
   }
 }

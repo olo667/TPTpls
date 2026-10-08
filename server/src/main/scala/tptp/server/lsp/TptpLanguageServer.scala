@@ -215,8 +215,9 @@ final class TptpLanguageServer(env: Map[String, String] = sys.env, onExit: Int =
 
   private def announceMissingRoot(): Unit =
     if (settings.tptpRoot.isEmpty && missingRootAnnounced.compareAndSet(false, true))
+      // logged, not shown: a pop-up at every start is intrusive (Neovim even blocks on a long one)
       client.foreach(
-        _.showMessage(l.MessageParams(
+        _.logMessage(l.MessageParams(
           l.MessageType.Info,
           "No TPTP root configured (setting tptp.tptpRoot or environment variable TPTP); " +
             "includes are resolved against the file's directory and the workspace only.",
