@@ -1,0 +1,2 @@
+% An axiom file with a syntax error (a missing argument)
+fof(broken, axiom, p(a, )).

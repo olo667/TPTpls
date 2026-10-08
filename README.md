@@ -27,11 +27,13 @@ Includes are resolved against the including file's directory, then each workspac
 ## Neovim
 
 To try the server without touching your own configuration, build the jar and start Neovim with the
-bundled test config (filetype detection, minimal highlighting, keys for definition/outline/diagnostics):
+bundled test config (filetype detection, minimal highlighting, keys for definition/outline/diagnostics;
+`<space>?` lists them). `editors/demo/showcase.p` exercises every feature: error repair, missing and
+cyclic includes, errors in included files, formula selections, outline and go-to-definition.
 
 ```sh
 sbt server/assembly
-nvim -u editors/nvim/init.lua path/to/problem.p
+nvim -u editors/nvim/init.lua editors/demo/showcase.p
 ```
 
 It uses `$TPTP`, or `~/.cache/tptp-lsp/TPTP-v9.3.1` from `scripts/fetch-tptp.sh`, as the TPTP root.

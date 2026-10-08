@@ -1,0 +1,5 @@
+% Axioms used by showcase.p
+fof(member_def, axiom, ! [E, S] : (member(E, S) => element(E))).
+fof(subset_def, axiom,
+    ! [S, T] : (subset(S, T) <=> ! [E] : (member(E, S) => member(E, T)))).
+fof(not_selected, axiom, ! [S] : subset(S, S)).

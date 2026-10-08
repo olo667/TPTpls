@@ -1,0 +1,2 @@
+include('loop_a.ax').
+fof(in_b, axiom, b).
