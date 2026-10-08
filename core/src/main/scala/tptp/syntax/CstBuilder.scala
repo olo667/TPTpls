@@ -42,6 +42,11 @@ final class CstBuilder private (strategy: ErrorCauseStrategy, startOffset: Int) 
     case r: RepairToken if r.origin == RepairToken.Origin.Hole =>
       val what = holeCategory(r)
       stack.head.add(ErrorNode(ErrorCause.MissingElement(what), s"missing $what", Span.empty(r.getStartIndex), Vector.empty))
+    case r: RepairToken if r.origin == RepairToken.Origin.Collapsed =>
+      val skipped = r.collapsed.map(AntlrTokens.toCst)
+      val span = Span(skipped.head.span.start, skipped.last.span.end)
+      stack.head.add(ErrorNode(ErrorCause.Unparsable(r.failedAt), "could not parse this part", span, skipped))
+      lastEnd = span.end
     case r: RepairToken if r.origin == RepairToken.Origin.Inserted =>
       val kind = TokenKind(r.getType)
       stack.head.add(ErrorNode(ErrorCause.MissingToken(Set(kind)), s"missing ${kind.name}", Span.empty(r.getStartIndex), Vector.empty))

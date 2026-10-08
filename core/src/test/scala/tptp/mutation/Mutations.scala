@@ -112,8 +112,9 @@ object MutationReport {
 
   def csv(outcomes: Vector[Outcome]): String = {
     def q(s: String) = "\"" + s.replace("\"", "\"\"") + "\""
-    ("file,kind,mutation,precision,violations,millis" +: outcomes.map { o =>
-      Seq(q(o.file), q(o.mutant.kind.label), q(o.mutant.description), o.result.precision.toString,
+    ("file,kind,mutation,precision,causes,violations,millis" +: outcomes.map { o =>
+      val causes = o.result.errors.map(e => e.cause.productPrefix).distinct.mkString(" ")
+      Seq(q(o.file), q(o.mutant.kind.label), q(o.mutant.description), o.result.precision.toString, q(causes),
         q(o.result.violations.mkString("; ")), o.result.millis.toString).mkString(",")
     }).mkString("\n") + "\n"
   }

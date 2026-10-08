@@ -9,6 +9,9 @@ enum ErrorCause {
   case LexerError
   /** A repair hole: an element such as a "term" or "formula" is missing here. */
   case MissingElement(what: String)
+  /** The contents of a bracket group that could not be parsed; the error node covers the group, `at` is the
+    * token where parsing failed, which is where the diagnostic is shown. */
+  case Unparsable(at: Span)
 }
 
 /** A syntax error as reported to the user. */

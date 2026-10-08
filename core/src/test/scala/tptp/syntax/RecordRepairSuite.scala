@@ -105,6 +105,56 @@ class RecordRepairSuite extends munit.FunSuite {
     assert(ms < 5000, s"took $ms ms")
   }
 
+  /** (spans of the contained groups, other error causes, token texts, diagnostic spans) */
+  private def contained(text: String) = {
+    val (parsed, record) = first(text)
+    val errs = errorNodes(record)
+    (errs.collect { case ErrorNode(ErrorCause.Unparsable(_), _, span, _) => span },
+     errs.map(_.cause).filter { case ErrorCause.Unparsable(_) => false; case _ => true },
+     tokens(record).map(_.text), parsed.errors.map(_.span))
+  }
+
+  test("an unrepairable part inside brackets is contained to that bracket group") {
+    val (groups, others, texts, diagnostics) = contained("fof(a,axiom,(p & (q § § § § r)) | s).")
+    assertEquals(groups, Vector(Span(18, 29)))
+    assertEquals(others, Vector.empty)
+    assert(Set("p", "&", "|", "s").subsetOf(texts.toSet), texts)
+    assertEquals(diagnostics, Vector(Span(20, 21)), "the diagnostic points at the first '§', where parsing failed")
+  }
+
+  test("an unrepairable argument list is contained to its brackets") {
+    val (groups, _, texts, _) = contained("fof(a,axiom,p(f(§ § § §), b)).")
+    assertEquals(groups, Vector(Span(16, 23)))
+    assert(texts.contains("b"), texts)
+  }
+
+  test("an unrepairable variable list is contained to its brackets") {
+    val (groups, _, texts, _) = contained("fof(a,axiom,! [X § § § § Y] : p(X)).")
+    assertEquals(groups, Vector(Span(15, 26)))
+    assert(texts.contains("p"), texts)
+  }
+
+  test("two broken groups give two contained errors") {
+    val (groups, others, _, diagnostics) = contained("fof(a,axiom,(p § § § § q) & (r § § § § s)).")
+    assertEquals(groups, Vector(Span(13, 24), Span(29, 40)))
+    assertEquals(others, Vector.empty)
+    assertEquals(diagnostics.size, 2)
+  }
+
+  test("a contained group combines with a cheap repair elsewhere") {
+    // the ')' of ').' closes the group, so the ')' for 'fof(' is missing
+    val (groups, others, texts, _) = contained("fof(a,axiom, p => (q $ $ $ $ r).")
+    assertEquals(groups, Vector(Span(19, 30)))
+    assertEquals(others, Vector(ErrorCause.MissingToken(Set(TokenKind.literal(")")))))
+    assert(Set("p", "=>").subsetOf(texts.toSet), texts)
+  }
+
+  test("without brackets around the error, default recovery is used as before") {
+    val (groups, others, _, _) = contained("fof(a,axiom,p § § § § q).")
+    assertEquals(groups, Vector.empty)
+    assert(others.nonEmpty)
+  }
+
   test("the split table comes from the grammar") {
     val splits = RecordRepair.splits.map { case (whole, (a, b)) => (whole.name, a.name, b.name) }.toSet
     assert(splits.contains(("'[]'", "'['", "']'")), splits)

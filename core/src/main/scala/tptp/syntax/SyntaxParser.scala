@@ -68,7 +68,12 @@ object SyntaxParser {
       val tok = AntlrTokens.toCst(t)
       insertByPosition(n, ErrorNode(ErrorCause.UnexpectedToken(tok.kind), s"unexpected '${tok.text}'", tok.span, Vector(tok)))
     }
-    (node, errorNodes(node).map(e => SyntaxError(e.cause, e.message, e.span)))
+    val errors = errorNodes(node).map { e =>
+      // a contained group is reported where parsing failed, not at the start of the whole group
+      val at = e.cause match { case ErrorCause.Unparsable(at) => at; case _ => e.span }
+      SyntaxError(e.cause, e.message, at)
+    }
+    (node, errors)
   }
 
   /** Puts `e` into the innermost node whose span strictly encloses it, in source order. */

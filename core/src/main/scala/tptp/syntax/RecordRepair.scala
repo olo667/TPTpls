@@ -7,8 +7,10 @@ import tptp.syntax.generated.{TPTPLexer, TPTPParser}
 
 import scala.jdk.CollectionConverters.*
 
-/** A token created by a repair: an inserted hole or punctuation token, or one part of a split token. */
-final class RepairToken(tokenType: Int, text: String, start: Int, stop: Int, val origin: RepairToken.Origin)
+/** A token created by a repair: an inserted hole or punctuation token, one part of a split token, or a
+  * placeholder standing for the `collapsed` contents of a bracket group that could not be parsed. */
+final class RepairToken(tokenType: Int, text: String, start: Int, stop: Int, val origin: RepairToken.Origin,
+                        val collapsed: Vector[AntlrToken] = Vector.empty, val failedAt: Span = Span.empty(0))
     extends CommonToken(tokenType, text) {
   setStartIndex(start)
   setStopIndex(stop)
@@ -22,7 +24,7 @@ final class RepairBudget(private var left: Long = RecordRepair.FileBudget) {
 
 object RepairToken {
   enum Origin {
-    case Hole, Inserted, SplitPart
+    case Hole, Inserted, SplitPart, Collapsed
   }
 }
 
@@ -33,6 +35,8 @@ object RecordRepair {
   final case class Repair(tokens: Vector[AntlrToken], deleted: Vector[AntlrToken])
 
   val MaxEdits = 3
+  /** Bracket groups that may be collapsed in one record (spec §5.5, bracket containment). */
+  val MaxCollapses = 3
   /** Budget in token-parses (parses × record length), so the search stays bounded on long records. */
   val WorkBudget = 300000L
   /** Budget for all records of one file; later broken records fall back to ANTLR's default recovery. */
@@ -91,24 +95,84 @@ object RecordRepair {
   def repair(tokens: Vector[AntlrToken], file: RepairBudget = new RepairBudget): Option[Repair] =
     if (file.remaining <= 0) None
     else {
-      val budget = new Budget(math.max(1, tokens.size), math.min(WorkBudget, file.remaining))
-      try deepen(tokens, budget)
-      finally file.spend(budget.used)
+      val perParse = math.max(1, tokens.size)
+      val limit = math.min(WorkBudget, file.remaining)
+      // the cheap search may use half of the budget, so that bracket containment always gets a turn
+      val cheap = new Budget(perParse, limit / 2)
+      try deepen(tokens, cheap).orElse {
+        val rest = new Budget(perParse, limit - cheap.used)
+        try contain(tokens, rest, MaxCollapses)
+        finally file.spend(rest.used)
+      }
+      finally file.spend(cheap.used)
     }
 
   /** Iterative deepening: the cheapest repair with the fewest edits, up to MaxEdits. */
-  private def deepen(tokens: Vector[AntlrToken], budget: Budget): Option[Repair] = {
+  private def deepen(tokens: Vector[AntlrToken], budget: Budget, maxDepth: Int = MaxEdits): Option[Repair] = {
     val initial = State(tokens, Vector.empty, 0, 0, 0, Vector.empty)
     var depth = 1
     var best: Option[State] = None
-    while (best.isEmpty && depth <= MaxEdits) {
+    while (best.isEmpty && depth <= maxDepth) {
       val found = search(initial, depth, budget)
-      if (found.isEmpty && budget.exhausted) depth = MaxEdits + 1
+      if (found.isEmpty && budget.exhausted) depth = maxDepth + 1
       best = found
       depth += 1
     }
     best.map(s => Repair(s.tokens, s.deleted))
   }
+
+  /** A bracket group: the indices of its opening and closing token. */
+  private final case class Group(open: Int, close: Int)
+
+  /** Balanced groups opened by a standalone `(` or `[` and closed by `)`, `]` or the `)` of `).`.
+    * Keyword tokens such as `fof(` do not open groups; unbalanced brackets yield no group. */
+  private def groups(tokens: Vector[AntlrToken]): Vector[Group] = {
+    var stack = List.empty[(Int, Char)]
+    val found = Vector.newBuilder[Group]
+    for ((t, i) <- tokens.zipWithIndex) t.getText match {
+      case "(" => stack = (i, '(') :: stack
+      case "[" => stack = (i, '[') :: stack
+      case ")" | ")." | "]" =>
+        val kind = if (t.getText == "]") '[' else '('
+        stack match {
+          case (open, `kind`) :: rest => found += Group(open, i); stack = rest
+          case _                      => ()
+        }
+      case _ => ()
+    }
+    found.result()
+  }
+
+  /** Bracket containment: when no small set of edits repairs the record, replace the contents of the innermost
+    * bracket group around the error by one placeholder, then repair what is left (another collapse included). */
+  private def contain(tokens: Vector[AntlrToken], budget: Budget, collapsesLeft: Int): Option[Repair] =
+    if (collapsesLeft == 0 || !budget.take()) None
+    else
+      failure(tokens) match {
+        case None => Some(Repair(tokens, Vector.empty))
+        case Some(Failure(window)) =>
+          val point = window.last
+          groups(tokens)
+            .filter(g => g.open < point && point <= g.close && g.close - g.open > 1)
+            .sortBy(g => g.close - g.open)
+            .iterator
+            .flatMap { g =>
+              val inside = tokens.slice(g.open + 1, g.close)
+              val holes = if (tokens(g.open).getText == "[") Grammar.Repair.holes.reverse else Grammar.Repair.holes
+              val failedAt = AntlrTokens.span(tokens(point))
+              holes.iterator.map { kind =>
+                val start = inside.head.getStartIndex
+                val hole = new RepairToken(kind.tokenType, "", start, start - 1, RepairToken.Origin.Collapsed, inside, failedAt)
+                tokens.patch(g.open + 1, Vector(hole), inside.size)
+              }
+            }
+            .flatMap { collapsed =>
+              if (budget.take() && failure(collapsed).isEmpty) Some(Repair(collapsed, Vector.empty))
+              // what is left after a collapse is usually a missing bracket: a shallow search, then further collapses
+              else deepen(collapsed, budget, maxDepth = 2).orElse(contain(collapsed, budget, collapsesLeft - 1))
+            }
+            .nextOption()
+      }
 
   /** The best repair using exactly `depth` more edits from `state`, or none. */
   private def search(state: State, depth: Int, budget: Budget): Option[State] =
