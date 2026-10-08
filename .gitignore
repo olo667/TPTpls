@@ -16,3 +16,5 @@ metals.sbt
 .superpowers/
 docs/superpowers/
 node_modules/
+# read-only reference checkouts (Leo-III, scala-tptp-parser, tptp-utils)
+reference/
