@@ -14,6 +14,14 @@ local tptp_root = os.getenv('TPTP')
 local cached = vim.fn.expand('~/.cache/tptp-lsp/TPTP-v9.3.1')
 if (tptp_root == nil or tptp_root == '') and vim.fn.isdirectory(cached) == 1 then tptp_root = cached end
 
+-- macOS Terminal.app with a profile that declares e.g. TERM=vt100: Neovim then prints terminfo padding
+-- such as $<2> on screen. The terminal is set up before this file runs, so only a warning helps here.
+if vim.env.TERM_PROGRAM == 'Apple_Terminal' and not (vim.env.TERM or ''):match('^xterm') then
+  vim.notify(('TERM=%s does not match Terminal.app; the screen may show garbage like $<2>.\n' ..
+    'Fix: Terminal → Settings → Profiles → Advanced → "Declare terminal as: xterm-256color",\n' ..
+    'or start with TERM=xterm-256color nvim …'):format(vim.env.TERM), vim.log.levels.WARN)
+end
+
 vim.g.mapleader = ' '
 vim.opt.number = true
 vim.opt.signcolumn = 'yes'

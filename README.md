@@ -36,6 +36,10 @@ sbt server/assembly
 nvim -u editors/nvim/init.lua editors/demo/showcase.p
 ```
 
+On macOS Terminal.app, the profile must declare the terminal as `xterm-256color` (Settings → Profiles →
+Advanced → "Declare terminal as"); with e.g. `vt100`, Neovim prints garbage such as `$<2>`. The test
+config warns about this at startup. `TERM=xterm-256color nvim …` works too.
+
 It uses `$TPTP`, or `~/.cache/tptp-lsp/TPTP-v9.3.1` from `scripts/fetch-tptp.sh`, as the TPTP root.
 To add the server to your own configuration instead:
 
