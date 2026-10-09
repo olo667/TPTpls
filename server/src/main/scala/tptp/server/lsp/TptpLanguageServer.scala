@@ -237,8 +237,14 @@ final class TptpLanguageServer(env: Map[String, String] = sys.env, onExit: Int =
     catch { case NonFatal(e) => log(s"$what failed: $e"); fallback }
 
   private def daemon(name: String): ThreadFactory = (r: Runnable) => {
-    val t = new Thread(r, name)
+    val t = new Thread(null, r, name, TptpLanguageServer.StackBytes)
     t.setDaemon(true)
     t
   }
+}
+
+object TptpLanguageServer {
+  /** Thread stack for parsing. ANTLR recurses once per nesting level, and the deepest TPTP library formula
+    * (HWV063+1) needs 32 MB; only the pages actually used are committed. Tests use the same size (build.sbt). */
+  val StackBytes: Long = 256L * 1024 * 1024
 }

@@ -65,8 +65,8 @@ This is an alpha. Known problems, to be addressed in later versions:
 - **Large files use a lot of memory.** The parse tree takes about 180 bytes per byte of text, and
   included files are cached with their full tree. Including an axiom file of several MB (some TPTP
   axiom sets are hundreds of MB) can exhaust the heap.
-- **Very deep nesting fails.** Formulas nested about 800 levels deep overflow the analysis thread's
-  stack; the file then gets no diagnostics.
+- **Extremely deep nesting fails.** The analysis thread has a 256 MB stack (the deepest TPTP library
+  formula, in `HWV063+1.p`, needs 32 MB); a formula nested beyond that leaves the file without diagnostics.
 - **The TPTP library test has no size limit**, so running it on the whole library fails on the largest
   files. The mutation runner skips files over 256 KB instead (`--max-size-kb`).
 - **Some repairs are imprecise.** A deleted `)` is often reported at a later position where it would

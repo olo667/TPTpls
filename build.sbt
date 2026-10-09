@@ -22,9 +22,11 @@ lazy val core = project
     libraryDependencies ++= Seq("org.antlr" % "antlr4-runtime" % antlrVersion, munit, munitScalacheck),
     // Forked tests run with core/ as working directory, so golden files resolve as src/test/resources/...
     Test / fork := true,
+    // the server parses on a 256 MB stack (TptpLanguageServer.StackBytes); tests use the same
+    Test / javaOptions += "-Xss256m",
     // the full mutation run (tptp.mutation.MutationRun) runs forked with room for large axiom files
     Test / run / fork := true,
-    Test / run / javaOptions ++= Seq("-Xmx5g", "-Xss64m"),
+    Test / run / javaOptions ++= Seq("-Xmx5g", "-Xss256m"),
   )
 
 lazy val server = project
