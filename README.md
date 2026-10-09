@@ -81,12 +81,9 @@ This is an alpha. Known problems, to be addressed in later versions:
   restart the server after changing `tptpRoot`, which also cannot be unset once set.
 - The "cannot find included file" message can list the same directory twice.
 - Only `file:` documents are analysed; unsaved, untitled buffers get no diagnostics.
-- Comments are lexed but not yet used (no hover or folding).
+- Comments are skipped by the grammar (no hover or folding).
 - **Very large records are slow to re-check.** A single record of several hundred KB (e.g. the LCL
   modal-logic encodings, up to 250 KB per formula) takes seconds to parse, and longer when broken.
-- **One TPTP library file does not parse with the official grammar:** `Problems/SYN/SYN000+2.p` uses
-  `theory(equality)` as an inference parent, but the grammar's `external_source` only allows `file(...)`.
-  Reported upstream.
 - **Testing covered FOF only.** The parser handles every TPTP language (THF, TFF, TCF, FOF, CNF, TPI)
   with the same error repair, outline and include handling, and should work on all of them, but the
   mutation tests and the library test were run on FOF files (TPTP names containing `+`) only; the
@@ -94,18 +91,9 @@ This is an alpha. Known problems, to be addressed in later versions:
 
 ## Grammar
 
-`core/src/main/antlr4/TPTP.g4` is the official TPTP grammar. Local edits are made only with
-maintainer-side confirmation and are reported upstream.
-
-Local modifications:
-
-- Comments (`Comment_line`, `Comment_block`) go to lexer channel 2 instead of being skipped, so the
-  server can see them. ANTLR does not allow named channels in a combined grammar, hence the number.
-
-- `Not_star_slash` is declared a `fragment`. Upstream it is a standalone lexer token, so a `**`
-  later in a file (e.g. a `%*****` banner) swallows the text before it.
-- `Exp_integer` and `Signed_exp_integer` are declared `fragment`s. Upstream they are standalone
-  tokens defined before `Integer`, so integers never lex as `Integer`.
+`core/src/main/antlr4/TPTP.g4` is generated from the TPTP BNF (SyntaxBNF-v9.3.1.4) by the BNF-to-ANTLR
+meta-grammar converter (`TPTP_20261008.g4` in jzxia/TPTP_SyntaxBNF) and used unedited. Problems are
+fixed in the converter, not locally.
 
 Files of the TPTP library that still fail to parse are listed in
 `core/src/test/resources/corpus-known-failures.txt`.
