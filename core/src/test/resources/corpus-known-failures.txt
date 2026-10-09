@@ -1,2 +1,5 @@
 # TPTP library files (relative to $TPTP) that currently fail to parse.
 # Regenerate with: UPDATE_GOLDEN=1 TPTP=/path/to/TPTP sbt 'core/testOnly tptp.syntax.CorpusSuite'
+Axioms/BIO001+0.ax
+Axioms/CSR003+2.ax
+Problems/SYN/SYN000+2.p

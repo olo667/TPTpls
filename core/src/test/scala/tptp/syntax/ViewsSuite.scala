@@ -10,7 +10,7 @@ class ViewsSuite extends munit.FunSuite {
     assertEquals(f.name.map(Names.key), Some("b"))
     assertEquals(f.name.map(_.text), Some("'b'"))
     assertEquals(f.role.map(_.text), Some("axiom"))
-    assertEquals(f.keyword.map(_.text), Some("fof("))
+    assertEquals(f.keyword.map(_.text), Some("fof"))
     assertEquals(t.language, "thf")
     assertEquals(t.role.map(_.text), Some("type"))
   }

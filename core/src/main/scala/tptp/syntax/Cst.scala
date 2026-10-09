@@ -41,7 +41,7 @@ final case class Token(kind: TokenKind, text: String, span: Span) extends Cst
 final case class ErrorNode(cause: ErrorCause, message: String, span: Span, skipped: Vector[Token]) extends Cst
 
 /** A parsed document: one top-level element per record (a `tptp_input` node or an error node). */
-final case class CstFile(records: Vector[Cst], comments: Vector[Token], lines: LineIndex) {
+final case class CstFile(records: Vector[Cst], lines: LineIndex) {
 
   /** Elements from a top-level record down to the innermost element at `offset`; empty if none. */
   def pathAt(offset: Int): List[Cst] = {

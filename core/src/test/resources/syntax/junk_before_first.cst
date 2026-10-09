@@ -4,7 +4,8 @@
 tptp_input 12..29
   annotated_formula 12..29
     fof_annotated 12..29
-      'fof(' "fof(" 12..16
+      'fof' "fof" 12..15
+      '(' "(" 15..16
       name 16..17
         atomic_word 16..17
           Lower_word "a" 16..17
@@ -24,6 +25,7 @@ tptp_input 12..29
                         Lower_word "p" 26..27
       annotations 27..27
         nothing 27..27
-      ').' ")." 27..29
+      ')' ")" 27..28
+      '.' "." 28..29
 -- errors --
 UnexpectedToken(Lower_word) 0..11 expected a record such as fof(...) or include(...), found 'hello'

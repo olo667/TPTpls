@@ -1,7 +1,8 @@
 tptp_input 0..21
   annotated_formula 0..21
     fof_annotated 0..21
-      'fof(' "fof(" 0..4
+      'fof' "fof" 0..3
+      '(' "(" 3..4
       name 4..5
         Integer "1" 4..5
       ',' "," 5..6
@@ -28,11 +29,13 @@ tptp_input 0..21
                   ')' ")" 18..19
       annotations 19..19
         nothing 19..19
-      ').' ")." 19..21
+      ')' ")" 19..20
+      '.' "." 20..21
 tptp_input 22..43
   annotated_formula 22..43
     fof_annotated 22..43
-      'fof(' "fof(" 22..26
+      'fof' "fof" 22..25
+      '(' "(" 25..26
       name 26..27
         atomic_word 26..27
           Lower_word "b" 26..27
@@ -60,5 +63,6 @@ tptp_input 22..43
                   ')' ")" 40..41
       annotations 41..41
         nothing 41..41
-      ').' ")." 41..43
+      ')' ")" 41..42
+      '.' "." 42..43
 -- errors --

@@ -31,7 +31,7 @@ object SyntaxParser {
           errors ++= recordErrors
       }
     }
-    val parsed = ParsedFile(CstFile(records.result(), lexed.comments.map(AntlrTokens.toCst), LineIndex(text)), errors.result())
+    val parsed = ParsedFile(CstFile(records.result(), LineIndex(text)), errors.result())
     PredictionCache.trim(cacheLimit)
     parsed
   }

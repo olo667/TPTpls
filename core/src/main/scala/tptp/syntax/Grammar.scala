@@ -19,14 +19,11 @@ object Grammar {
       Vector("thf", "tff", "tcf", "fof", "cnf", "tpi").map(l => RuleKind.named(s"${l}_annotated") -> l).toMap
   }
 
-  object Channels {
-    /** The grammar sends comments to channel 2 (combined grammars cannot declare named channels). */
-    val comments: Int = 2
-  }
-
   object Tokens {
     val recordKeywords: Set[TokenKind] =
-      Set("tpi(", "thf(", "tff(", "tcf(", "fof(", "cnf(", "include(").map(TokenKind.literal)
+      Set("tpi", "thf", "tff", "tcf", "fof", "cnf", "include").map(TokenKind.literal)
+    val openParen: TokenKind = TokenKind.literal("(")
+    val recordEnd: TokenKind = TokenKind.literal(".")
     val lowerWord: TokenKind = TokenKind.symbolic("Lower_word")
     val upperWord: TokenKind = TokenKind.symbolic("Upper_word")
     val singleQuoted: TokenKind = TokenKind.symbolic("Single_quoted")
@@ -36,7 +33,7 @@ object Grammar {
   object Repair {
     /** Placeholders for a missing term/formula/name (first) or variable (second). */
     val holes: Vector[TokenKind] = Vector(Tokens.lowerWord, Tokens.upperWord)
-    val closers: Vector[TokenKind] = Vector(")", "]", ").").map(TokenKind.literal)
+    val closers: Vector[TokenKind] = Vector(")", "]", ".").map(TokenKind.literal)
     val separators: Vector[TokenKind] = Vector(",", ":").map(TokenKind.literal)
   }
 

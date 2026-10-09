@@ -72,6 +72,12 @@ This is an alpha. Known problems, to be addressed in later versions:
 - **Some repairs are imprecise.** A deleted `)` is often reported at a later position where it would
   also fit; a wrong operator (`p § q`, `~ [X]` instead of `! [X]`) is reported with ANTLR's generic
   messages, or as two unexpected tokens.
+- **Record keywords cannot be used as names.** The grammar (converted automatically from the TPTP
+  BNF) makes `fof`, `cnf`, `thf`, `tff`, `tcf`, `tpi`, `include`, `file`, `inference`, `introduced` and
+  `$thf`, `$tff`, `$fof`, `$cnf`, `$fot`, `$let` separate tokens, so `p(file)` is reported as an error
+  although it is valid TPTP (`Axioms/CSR003+2.ax`, `Axioms/BIO001+0.ax`). To be fixed in the converter.
+- **`theory(...)` sources are not accepted** (`Problems/SYN/SYN000+2.p`): the grammar's
+  `external_source` lacks them.
 - **A closed document can keep its diagnostics** if its analysis finishes at the moment it is closed.
 - **Settings pulled via `workspace/configuration` are not re-read** when the client reports a change;
   restart the server after changing `tptpRoot`, which also cannot be unset once set.

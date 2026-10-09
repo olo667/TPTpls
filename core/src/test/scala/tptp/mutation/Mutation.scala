@@ -66,7 +66,7 @@ final class Mutator(seed: Long) {
   }
 
   private def deletePunctuation(doc: Doc): Vector[() => Mutant] =
-    doc.tokens.filter(t => t.text == ")" || t.text == "]" || t.text == ").").map { t =>
+    doc.tokens.filter(t => t.text == ")" || t.text == "]" || t.text == ".").map { t =>
       val r = doc.recordOf(t.span.start)
       () => Mutant(MutationKind.DeletePunctuation, s"delete '${t.text}' at ${t.span.start}", doc.edit(t.span, ""), r, r, doc.after(r),
         Expectation(doc.previousTokenEnd(t.span.start), doc.nextTokenStart(t.span.end) - t.span.length,
@@ -77,8 +77,8 @@ final class Mutator(seed: Long) {
     doc.tokens.map { t =>
       val r = doc.recordOf(t.span.start)
       val at = t.span.end + 1
-      () => Mutant(MutationKind.InsertStray, s"insert '§' after '${t.text}' at ${t.span.end}", doc.edit(Span.empty(t.span.end), " §"),
-        r, r, doc.after(r), Expectation(at, at, { case ErrorCause.UnexpectedToken(_) => true; case _ => false }, "unexpected '§'"))
+      () => Mutant(MutationKind.InsertStray, s"insert '@' after '${t.text}' at ${t.span.end}", doc.edit(Span.empty(t.span.end), " @"),
+        r, r, doc.after(r), Expectation(at, at, { case ErrorCause.UnexpectedToken(_) => true; case _ => false }, "unexpected '@'"))
     }
 
   private def duplicateCommas(doc: Doc): Vector[() => Mutant] =

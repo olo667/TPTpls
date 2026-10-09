@@ -1,15 +1,18 @@
 tptp_input 0..30
   include 0..30
-    'include(' "include(" 0..8
+    'include' "include" 0..7
+    '(' "(" 7..8
     file_name 8..28
       atomic_word 8..28
         Single_quoted "'Axioms/SET001+0.ax'" 8..28
     include_optionals 28..28
       nothing 28..28
-    ').' ")." 28..30
+    ')' ")" 28..29
+    '.' "." 29..30
 tptp_input 31..73
   include 31..73
-    'include(' "include(" 31..39
+    'include' "include" 31..38
+    '(' "(" 38..39
     file_name 39..59
       atomic_word 39..59
         Single_quoted "'Axioms/SET001+1.ax'" 39..59
@@ -27,11 +30,13 @@ tptp_input 31..73
               atomic_word 67..70
                 Lower_word "ax2" 67..70
         ']' "]" 70..71
-    ').' ")." 71..73
+    ')' ")" 71..72
+    '.' "." 72..73
 tptp_input 74..94
   annotated_formula 74..94
     thf_annotated 74..94
-      'thf(' "thf(" 74..78
+      'thf' "thf" 74..77
+      '(' "(" 77..78
       name 78..79
         atomic_word 78..79
           Lower_word "t" 78..79
@@ -58,11 +63,13 @@ tptp_input 74..94
                           Dollar_word "$i" 90..92
       annotations 92..92
         nothing 92..92
-      ').' ")." 92..94
+      ')' ")" 92..93
+      '.' "." 93..94
 tptp_input 95..145
   annotated_formula 95..145
     tff_annotated 95..145
-      'tff(' "tff(" 95..99
+      'tff' "tff" 95..98
+      '(' "(" 98..99
       name 99..100
         atomic_word 99..100
           Lower_word "f" 99..100
@@ -137,11 +144,13 @@ tptp_input 95..145
                         ')' ")" 142..143
       annotations 143..143
         nothing 143..143
-      ').' ")." 143..145
+      ')' ")" 143..144
+      '.' "." 144..145
 tptp_input 146..176
   annotated_formula 146..176
     cnf_annotated 146..176
-      'cnf(' "cnf(" 146..150
+      'cnf' "cnf" 146..149
+      '(' "(" 149..150
       name 150..152
         atomic_word 150..152
           Lower_word "c1" 150..152
@@ -182,5 +191,6 @@ tptp_input 146..176
                   ')' ")" 173..174
       annotations 174..174
         nothing 174..174
-      ').' ")." 174..176
+      ')' ")" 174..175
+      '.' "." 175..176
 -- errors --

@@ -8,7 +8,9 @@ enum Segment {
   case Junk(tokens: Vector[AntlrToken])
 }
 
-/** Cuts a token stream before every record keyword, so an error can never spill into the next record. */
+/** Cuts a token stream before every record keyword that is followed by `(` or follows the `.` ending a record,
+  * so an error can never spill into the next record. Other keywords are words inside a record, e.g. the
+  * constant `include` in `p(include)`. */
 object RecordSplitter {
   val recordStarts: Set[TokenKind] = Grammar.Tokens.recordKeywords
 
@@ -22,8 +24,8 @@ object RecordSplitter {
         val ts = current.result()
         out += (if (currentIsRecord) Segment.Record(ts) else Segment.Junk(ts))
       }
-    for (t <- tokens) {
-      if (recordStarts(TokenKind(t.getType))) {
+    for ((t, i) <- tokens.zipWithIndex) {
+      if (startsRecord(tokens, i)) {
         flush()
         current = Vector.newBuilder[AntlrToken]
         currentIsRecord = true
@@ -35,4 +37,10 @@ object RecordSplitter {
     flush()
     out.result()
   }
+
+  private def startsRecord(tokens: Vector[AntlrToken], i: Int): Boolean =
+    recordStarts(TokenKind(tokens(i).getType)) && (
+      tokens.lift(i + 1).exists(next => TokenKind(next.getType) == Grammar.Tokens.openParen) ||
+        tokens.lift(i - 1).exists(prev => TokenKind(prev.getType) == Grammar.Tokens.recordEnd)
+    )
 }

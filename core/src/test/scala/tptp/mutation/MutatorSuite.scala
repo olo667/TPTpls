@@ -27,9 +27,9 @@ class MutatorSuite extends munit.FunSuite {
     assertEquals((m.expected.from, m.expected.to), (16, 17)) // from the end of "&" to where the next token starts
   }
 
-  test("deleting punctuation removes one ), ] or ).") {
+  test("deleting punctuation removes one ), ] or .") {
     val texts = mutants(MutationKind.DeletePunctuation, t = "fof(a,axiom,p(X)).").map(_.text).toSet
-    assertEquals(texts, Set("fof(a,axiom,p(X).", "fof(a,axiom,p(X)"))
+    assertEquals(texts, Set("fof(a,axiom,p(X).", "fof(a,axiom,p(X))"))
   }
 
   test("typos change exactly one character") {
@@ -46,9 +46,9 @@ class MutatorSuite extends munit.FunSuite {
     assert(keywordTypos.forall(m => m.boundaryRecord == m.recordIndex - 1), keywordTypos.map(_.description))
   }
 
-  test("truncation keeps a prefix; stray insertion adds one §; comma duplication adds one comma") {
+  test("truncation keeps a prefix; stray insertion adds one @; comma duplication adds one comma") {
     mutants(MutationKind.Truncate).foreach(m => assert(text.startsWith(m.text), m.description))
-    mutants(MutationKind.InsertStray).foreach(m => assertEquals(m.text.count(_ == '§'), 1))
+    mutants(MutationKind.InsertStray).foreach(m => assertEquals(m.text.count(_ == '@'), 1))
     mutants(MutationKind.DuplicateComma).foreach(m => assertEquals(m.text.count(_ == ','), text.count(_ == ',') + 1))
   }
 

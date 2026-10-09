@@ -5,14 +5,22 @@ import tptp.syntax.generated.TPTPLexer
 
 import scala.jdk.CollectionConverters.*
 
-final case class LexResult(tokens: Vector[AntlrToken], comments: Vector[AntlrToken], errors: Vector[SyntaxError])
+/** Comments are skipped by the grammar, so only default-channel tokens remain. */
+final case class LexResult(tokens: Vector[AntlrToken], errors: Vector[SyntaxError])
 
 object LexerDriver {
 
   /** Lexes the whole text. Never throws on malformed input. */
   def lex(text: String): LexResult = {
     val length = text.codePointCount(0, text.length)
-    val lexer = new TPTPLexer(CharStreams.fromString(text))
+    val lexer = new TPTPLexer(CharStreams.fromString(text)) {
+      // ANTLR skips everything it read before failing, e.g. a whole line after an unterminated quote;
+      // skip only the first character instead and lex the rest normally
+      override def recover(e: LexerNoViableAltException): Unit = {
+        getInputStream.seek(e.getStartIndex)
+        getInterpreter.consume(getInputStream)
+      }
+    }
     lexer.removeErrorListeners()
     val errors = Vector.newBuilder[SyntaxError]
     lexer.addErrorListener(new BaseErrorListener {
@@ -28,15 +36,14 @@ object LexerDriver {
           case n: LexerNoViableAltException => n.getStartIndex
           case _                            => lexer._tokenStartCharIndex
         }
-        errors += SyntaxError(ErrorCause.LexerError, msg, Span(start, math.min(start + 1, length).max(start)))
+        val span = Span(start, math.min(start + 1, length).max(start))
+        val message =
+          if (span.length == 0) msg
+          else s"unexpected character '${new String(Character.toChars(text.codePointAt(text.offsetByCodePoints(0, start))))}'"
+        errors += SyntaxError(ErrorCause.LexerError, message, span)
       }
     })
-    val all = lexer.getAllTokens.asScala.toVector
-    LexResult(
-      all.filter(_.getChannel == AntlrToken.DEFAULT_CHANNEL),
-      all.filter(_.getChannel == Grammar.Channels.comments),
-      errors.result(),
-    )
+    LexResult(lexer.getAllTokens.asScala.toVector, errors.result())
   }
 }
 

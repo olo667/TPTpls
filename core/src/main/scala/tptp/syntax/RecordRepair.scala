@@ -1,13 +1,13 @@
 package tptp.syntax
 
-import org.antlr.v4.runtime.{BailErrorStrategy, CharStreams, CommonToken, CommonTokenStream, ListTokenSource, NoViableAltException, RecognitionException, Token as AntlrToken}
+import org.antlr.v4.runtime.{BailErrorStrategy, CommonToken, CommonTokenStream, ListTokenSource, NoViableAltException, RecognitionException, Token as AntlrToken}
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.ParseCancellationException
-import tptp.syntax.generated.{TPTPLexer, TPTPParser}
+import tptp.syntax.generated.TPTPParser
 
 import scala.jdk.CollectionConverters.*
 
-/** A token created by a repair: an inserted hole or punctuation token, one part of a split token, or a
+/** A token created by a repair: an inserted hole or punctuation token, or a
   * placeholder standing for the `collapsed` contents of a bracket group that could not be parsed. */
 final class RepairToken(tokenType: Int, text: String, start: Int, stop: Int, val origin: RepairToken.Origin,
                         val collapsed: Vector[AntlrToken] = Vector.empty, val failedAt: Span = Span.empty(0))
@@ -24,7 +24,7 @@ final class RepairBudget(private var left: Long = RecordRepair.FileBudget) {
 
 object RepairToken {
   enum Origin {
-    case Hole, Inserted, SplitPart, Collapsed
+    case Hole, Inserted, Collapsed
   }
 }
 
@@ -41,25 +41,6 @@ object RecordRepair {
   val WorkBudget = 300000L
   /** Budget for all records of one file; later broken records fall back to ANTLR's default recovery. */
   val FileBudget = 1000000L
-
-  /** Literal tokens made only of brackets and `.` that split into two tokens, e.g. `[]` → `[` `]`.
-    * Operators such as `<=>` are deliberately not split: a gap inside an operator is never meaningful. */
-  val splits: Map[TokenKind, (TokenKind, TokenKind)] = {
-    val vocab = TPTPParser.VOCABULARY
-    def single(text: String): Option[TokenKind] = {
-      val ts = new TPTPLexer(CharStreams.fromString(text)).getAllTokens.asScala
-      if (ts.size == 1 && ts.head.getText == text) Some(TokenKind(ts.head.getType)) else None
-    }
-    (1 to vocab.getMaxTokenType).flatMap { t =>
-      Option(vocab.getLiteralName(t)).map(_.stripPrefix("'").stripSuffix("'")).filter { text =>
-        text.length >= 2 && text.forall("()[]{}.".contains(_))
-      }.flatMap { text =>
-        (1 until text.length).iterator.flatMap { i =>
-          for (a <- single(text.take(i)); b <- single(text.drop(i))) yield TokenKind(t) -> (a, b)
-        }.nextOption()
-      }
-    }.toMap
-  }
 
   private enum Candidate(val kind: TokenKind, val cost: Int, val order: Int) {
     case Hole(k: TokenKind, o: Int) extends Candidate(k, 1, o)
@@ -124,15 +105,17 @@ object RecordRepair {
   /** A bracket group: the indices of its opening and closing token. */
   private final case class Group(open: Int, close: Int)
 
-  /** Balanced groups opened by a standalone `(` or `[` and closed by `)`, `]` or the `)` of `).`.
-    * Keyword tokens such as `fof(` do not open groups; unbalanced brackets yield no group. */
+  /** Balanced groups opened by `(` or `[` and closed by `)` or `]`. The `(` after a record keyword such as `fof`
+    * opens no group, so a whole record is never collapsed; unbalanced brackets yield no group. */
   private def groups(tokens: Vector[AntlrToken]): Vector[Group] = {
     var stack = List.empty[(Int, Char)]
     val found = Vector.newBuilder[Group]
+    def afterKeyword(i: Int) = i > 0 && Grammar.Tokens.recordKeywords(TokenKind(tokens(i - 1).getType))
     for ((t, i) <- tokens.zipWithIndex) t.getText match {
+      case "(" if afterKeyword(i) => ()
       case "(" => stack = (i, '(') :: stack
       case "[" => stack = (i, '[') :: stack
-      case ")" | ")." | "]" =>
+      case ")" | "]" =>
         val kind = if (t.getText == "]") '[' else '('
         stack match {
           case (open, `kind`) :: rest => found += Group(open, i); stack = rest
@@ -208,16 +191,7 @@ object RecordRepair {
         Iterator.single(state.copy(tokens = ts.patch(pos, Nil, 1), deleted = state.deleted :+ ts(pos), cost = state.cost + DeleteCost,
           deletions = state.deletions + 1, positions = state.positions + pos, order = state.order :+ DeleteOrder))
       else Iterator.empty
-    val splitInserts =
-      if (pos < ts.size) splits.get(TokenKind(ts(pos).getType)).iterator.flatMap { case (a, b) =>
-        val whole = ts(pos)
-        val mid = whole.getStartIndex + a.name.stripPrefix("'").stripSuffix("'").length
-        val left = new RepairToken(a.tokenType, whole.getText.take(mid - whole.getStartIndex), whole.getStartIndex, mid - 1, RepairToken.Origin.SplitPart)
-        val right = new RepairToken(b.tokenType, whole.getText.drop(mid - whole.getStartIndex), mid, whole.getStopIndex, RepairToken.Origin.SplitPart)
-        candidates.iterator.map(c => next(ts.patch(pos, Vector(left, made(c, mid), right), 1), c))
-      }
-      else Iterator.empty
-    inserts ++ splitInserts ++ deletes
+    inserts ++ deletes
   }
 
   private def failure(tokens: Vector[AntlrToken]): Option[Failure] = {

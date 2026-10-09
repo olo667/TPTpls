@@ -20,7 +20,7 @@ class RecordRepairSuite extends munit.FunSuite {
     val (parsed, record) = first("fof(a,axiom,(p & )).")
     assertEquals(errorNodes(record).map(e => (e.cause, e.span)), Vector((ErrorCause.MissingElement("formula"), Span(17, 17))))
     assertEquals(parsed.errors.map(e => (e.message, e.span)), Vector(("missing formula", Span(17, 17))))
-    assertEquals(tokens(record).map(_.text), Vector("fof(", "a", ",", "axiom", ",", "(", "p", "&", ")", ")."))
+    assertEquals(tokens(record).map(_.text), Vector("fof", "(", "a", ",", "axiom", ",", "(", "p", "&", ")", ")", "."))
   }
 
   test("a missing role is reported as a role, not a formula") {
@@ -44,9 +44,10 @@ class RecordRepairSuite extends munit.FunSuite {
 
   test("a missing parenthesis is inserted and the formula keeps its structure") {
     val (parsed, record) = first("fof(a,axiom,p(X).")
+    // the `)` present closes `p(`; the one missing is the record's, before `.`
     assertEquals(errorNodes(record).map(e => (e.cause, e.span)),
-      Vector((ErrorCause.MissingToken(Set(TokenKind.literal(")"))), Span(15, 15))))
-    assertEquals(tokens(record).map(_.text), Vector("fof(", "a", ",", "axiom", ",", "p", "(", "X", ")."))
+      Vector((ErrorCause.MissingToken(Set(TokenKind.literal(")"))), Span(16, 16))))
+    assertEquals(tokens(record).map(_.text), Vector("fof", "(", "a", ",", "axiom", ",", "p", "(", "X", ")", "."))
     assertEquals(parsed.errors.map(_.message), Vector("missing ')'"))
   }
 
@@ -54,7 +55,7 @@ class RecordRepairSuite extends munit.FunSuite {
     val (parsed, record) = first("fof(a,axiom,(p & ).")
     assertEquals(errorNodes(record).map(e => (e.cause, e.span)), Vector(
       (ErrorCause.MissingElement("formula"), Span(17, 17)),
-      (ErrorCause.MissingToken(Set(TokenKind.literal(")"))), Span(17, 17)),
+      (ErrorCause.MissingToken(Set(TokenKind.literal(")"))), Span(18, 18)),
     ))
     assertEquals(parsed.errors.size, 2)
   }
@@ -62,7 +63,8 @@ class RecordRepairSuite extends munit.FunSuite {
   test("an unfinished record at the end of the file is completed") {
     val (parsed, record) = first("fof(a,axiom,p & ")
     assertEquals(errorNodes(record).map(_.cause).toSet,
-      Set(ErrorCause.MissingElement("formula"), ErrorCause.MissingToken(Set(TokenKind.literal(").")))))
+      Set(ErrorCause.MissingElement("formula"), ErrorCause.MissingToken(Set(TokenKind.literal(")"))),
+        ErrorCause.MissingToken(Set(TokenKind.literal(".")))))
     assert(parsed.errors.forall(_.span == Span(15, 15)), parsed.errors)
   }
 
@@ -84,7 +86,7 @@ class RecordRepairSuite extends munit.FunSuite {
   }
 
   test("the repair search is bounded on large broken records") {
-    val text = "fof(a,axiom," + ("§ " * 300) + ")."
+    val text = "fof(a,axiom," + ("@ " * 300) + ")."
     val t0 = System.nanoTime
     val parsed = SyntaxParser.parse(text)
     val ms = (System.nanoTime - t0) / 1000000
@@ -115,27 +117,27 @@ class RecordRepairSuite extends munit.FunSuite {
   }
 
   test("an unrepairable part inside brackets is contained to that bracket group") {
-    val (groups, others, texts, diagnostics) = contained("fof(a,axiom,(p & (q § § § § r)) | s).")
+    val (groups, others, texts, diagnostics) = contained("fof(a,axiom,(p & (q @ @ @ @ r)) | s).")
     assertEquals(groups, Vector(Span(18, 29)))
     assertEquals(others, Vector.empty)
     assert(Set("p", "&", "|", "s").subsetOf(texts.toSet), texts)
-    assertEquals(diagnostics, Vector(Span(20, 21)), "the diagnostic points at the first '§', where parsing failed")
+    assertEquals(diagnostics, Vector(Span(20, 21)), "the diagnostic points at the first '@', where parsing failed")
   }
 
   test("an unrepairable argument list is contained to its brackets") {
-    val (groups, _, texts, _) = contained("fof(a,axiom,p(f(§ § § §), b)).")
+    val (groups, _, texts, _) = contained("fof(a,axiom,p(f(@ @ @ @), b)).")
     assertEquals(groups, Vector(Span(16, 23)))
     assert(texts.contains("b"), texts)
   }
 
   test("an unrepairable variable list is contained to its brackets") {
-    val (groups, _, texts, _) = contained("fof(a,axiom,! [X § § § § Y] : p(X)).")
+    val (groups, _, texts, _) = contained("fof(a,axiom,! [X @ @ @ @ Y] : p(X)).")
     assertEquals(groups, Vector(Span(15, 26)))
     assert(texts.contains("p"), texts)
   }
 
   test("two broken groups give two contained errors") {
-    val (groups, others, _, diagnostics) = contained("fof(a,axiom,(p § § § § q) & (r § § § § s)).")
+    val (groups, others, _, diagnostics) = contained("fof(a,axiom,(p @ @ @ @ q) & (r @ @ @ @ s)).")
     assertEquals(groups, Vector(Span(13, 24), Span(29, 40)))
     assertEquals(others, Vector.empty)
     assertEquals(diagnostics.size, 2)
@@ -150,16 +152,8 @@ class RecordRepairSuite extends munit.FunSuite {
   }
 
   test("without brackets around the error, default recovery is used as before") {
-    val (groups, others, _, _) = contained("fof(a,axiom,p § § § § q).")
+    val (groups, others, _, _) = contained("fof(a,axiom,p @ @ @ @ q).")
     assertEquals(groups, Vector.empty)
     assert(others.nonEmpty)
-  }
-
-  test("the split table comes from the grammar") {
-    val splits = RecordRepair.splits.map { case (whole, (a, b)) => (whole.name, a.name, b.name) }.toSet
-    assert(splits.contains(("'[]'", "'['", "']'")), splits)
-    assert(splits.contains(("').'", "')'", "'.'")), splits)
-    assert(!splits.exists(_._1 == "'<=>'"), splits)
-    assert(!splits.exists(_._1 == "'fof('"), splits)
   }
 }

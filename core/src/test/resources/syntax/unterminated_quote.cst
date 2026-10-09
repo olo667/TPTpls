@@ -1,9 +1,8 @@
 tptp_input 0..20
   annotated_formula 0..20
     fof_annotated 0..20
-      'fof(' "fof(" 0..4
-      !error UnexpectedToken(''') 4..5 "unexpected '''"
-        ''' "'" 4..5
+      'fof' "fof" 0..3
+      '(' "(" 3..4
       name 5..8
         atomic_word 5..8
           Lower_word "abc" 5..8
@@ -23,11 +22,13 @@ tptp_input 0..20
                         Lower_word "p" 17..18
       annotations 18..18
         nothing 18..18
-      ').' ")." 18..20
+      ')' ")" 18..19
+      '.' "." 19..20
 tptp_input 21..38
   annotated_formula 21..38
     fof_annotated 21..38
-      'fof(' "fof(" 21..25
+      'fof' "fof" 21..24
+      '(' "(" 24..25
       name 25..26
         atomic_word 25..26
           Lower_word "b" 25..26
@@ -47,6 +48,7 @@ tptp_input 21..38
                         Lower_word "q" 35..36
       annotations 36..36
         nothing 36..36
-      ').' ")." 36..38
+      ')' ")" 36..37
+      '.' "." 37..38
 -- errors --
-UnexpectedToken(''') 4..5 unexpected '''
+LexerError 4..5 unexpected character '''
