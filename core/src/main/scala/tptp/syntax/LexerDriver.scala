@@ -3,15 +3,26 @@ package tptp.syntax
 import org.antlr.v4.runtime.{BaseErrorListener, CharStreams, LexerNoViableAltException, RecognitionException, Recognizer, Token as AntlrToken}
 import tptp.syntax.generated.TPTPLexer
 
-import scala.jdk.CollectionConverters.*
-
 /** Comments are skipped by the grammar, so only default-channel tokens remain. */
 final case class LexResult(tokens: Vector[AntlrToken], errors: Vector[SyntaxError])
 
+/** Tokens are produced while `tokens` is iterated; `errors` is complete once it is exhausted. */
+final class LexStream private[syntax] (lexer: TPTPLexer, collected: scala.collection.mutable.ArrayBuffer[SyntaxError]) {
+  val tokens: Iterator[AntlrToken] = Iterator.continually(lexer.nextToken()).takeWhile(_.getType != AntlrToken.EOF)
+  def errors: Vector[SyntaxError] = collected.toVector
+}
+
 object LexerDriver {
 
-  /** Lexes the whole text. Never throws on malformed input. */
+  /** All tokens at once, for tools and tests. The parser uses `stream`. */
   def lex(text: String): LexResult = {
+    val s = stream(text)
+    val tokens = s.tokens.toVector
+    LexResult(tokens, s.errors)
+  }
+
+  /** Lexes lazily, so a record's tokens can be dropped before the next record is lexed. Never throws. */
+  def stream(text: String): LexStream = {
     val length = text.codePointCount(0, text.length)
     val lexer = new TPTPLexer(CharStreams.fromString(text)) {
       // ANTLR skips everything it read before failing, e.g. a whole line after an unterminated quote;
@@ -22,7 +33,7 @@ object LexerDriver {
       }
     }
     lexer.removeErrorListeners()
-    val errors = Vector.newBuilder[SyntaxError]
+    val errors = scala.collection.mutable.ArrayBuffer.empty[SyntaxError]
     lexer.addErrorListener(new BaseErrorListener {
       override def syntaxError(
           recognizer: Recognizer[?, ?],
@@ -43,7 +54,7 @@ object LexerDriver {
         errors += SyntaxError(ErrorCause.LexerError, message, span)
       }
     })
-    LexResult(lexer.getAllTokens.asScala.toVector, errors.result())
+    new LexStream(lexer, errors)
   }
 }
 
@@ -51,6 +62,4 @@ private[syntax] object AntlrTokens {
   def span(t: AntlrToken): Span =
     if (t.getType == AntlrToken.EOF) Span.empty(math.max(t.getStartIndex, 0))
     else Span(t.getStartIndex, t.getStopIndex + 1)
-
-  def toCst(t: AntlrToken): Token = Token(TokenKind(t.getType), t.getText, span(t))
 }

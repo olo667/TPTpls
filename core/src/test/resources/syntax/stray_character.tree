@@ -1,0 +1,16 @@
+! LexerError 16..17 unexpected character '§'
+FofRecord 0..21
+  ! UnexpectedToken(Lower_word) 18..19 unexpected 'q'
+  Name "a" 4..5
+  Role 7..12
+    Name "axiom" 7..12
+  Logical 14..15
+    AtomicFormula Plain 14..15
+      Name "p" 14..15
+FofRecord 22..39
+  Name "b" 26..27
+  Role 29..34
+    Name "axiom" 29..34
+  Logical 36..37
+    AtomicFormula Plain 36..37
+      Name "q" 36..37

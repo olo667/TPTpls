@@ -1,25 +1,24 @@
 package tptp.analysis
 
 import tptp.semantics.Location
-import tptp.syntax.*
+import tptp.syntax.{LineIndex, Span}
+import tptp.syntax.tree.{Include, Name}
 
 object Navigation {
-  /** Definition locations for the element at `offset` in `file`. v0.01: include file names and selected names. */
+  /** Definition locations for the element at `offset` in `file`: include file names and selected names. */
   def definition(file: FileAnalysis, offset: Int, project: ProjectAnalyzer): Vector[Location] = {
-    val path = file.parsed.cst.pathAt(offset)
-    val token = path.lastOption.collect { case t: Token => t }
-    (path.headOption.flatMap(Record.of), token) match {
-      case (Some(Record.Include(d)), Some(t)) =>
-        val target = file.includes.find(_.directive.node.span == d.node.span).flatMap(_.target)
+    val path = file.tree.pathAt(offset)
+    (path.headOption, path.lastOption) match {
+      case (Some(include: Include), Some(name: Name)) =>
+        val target = file.includes.find(_.include eq include).flatMap(_.target)
         target.toVector.flatMap { targetPath =>
-          if (d.fileNameToken.contains(t))
+          if (include.fileName == name)
             Vector(Location(targetPath, Span.empty(0), project.fileAnalysis(targetPath).map(_.lines).getOrElse(LineIndex(""))))
-          else if (d.selection.exists(_.contains(t))) {
-            val key = Names.key(t)
+          else if (include.selection.exists(_.contains(name)))
             project.includeClosure(targetPath).flatMap { a =>
-              a.formulaNames.getOrElse(key, Vector.empty).map(n => Location(a.path, n.span, a.lines))
+              a.formulaNames.getOrElse(name.key, Vector.empty).map(n => Location(a.path, n.span, a.lines))
             }
-          } else Vector.empty
+          else Vector.empty
         }
       case _ => Vector.empty
     }

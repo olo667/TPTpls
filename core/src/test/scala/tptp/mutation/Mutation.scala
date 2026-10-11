@@ -2,6 +2,7 @@ package tptp.mutation
 
 import scala.util.Random
 import tptp.syntax.*
+import tptp.syntax.tree.{AtomicFormula, AtomicTerm, BinaryFormula, Equality, Inequality, QuantifiedFormula, Record, Tree, TptpFile, UnaryFormula}
 
 /** @param causeIsGeneric the expectation accepts any cause, so "right cause, wrong place" is not meaningful */
 enum MutationKind(val label: String, val mustError: Boolean, val causeIsGeneric: Boolean) {
@@ -27,7 +28,7 @@ final case class Mutant(kind: MutationKind, description: String, text: String, r
 final class Mutator(seed: Long) {
   private val operatorChars = "!?&|~=<>+*-:@^"
 
-  def mutants(text: String, parsed: ParsedFile, kind: MutationKind, count: Int): Vector[Mutant] = {
+  def mutants(text: String, parsed: TptpFile, kind: MutationKind, count: Int): Vector[Mutant] = {
     val doc = Doc(text, parsed)
     val rnd = new Random(seed * 1000003L + kind.ordinal * 7919L + text.hashCode)
     val all = kind match {
@@ -44,23 +45,25 @@ final class Mutator(seed: Long) {
   private def anyCause: ErrorCause => Boolean = _ => true
 
   private def deleteElements(doc: Doc): Vector[() => Mutant] = {
-    val wanted = Set("term", "formula", "variable")
-    def collect(c: Cst, parentChildren: Int): Vector[Node] = c match {
-      case n: Node if n.kind.name == "annotations" => Vector.empty
-      case n: Node =>
-        val here =
-          if (parentChildren > 1 && n.span.length > 0 && wanted(Grammar.Categories.describe(n.kind))) Vector(n) else Vector.empty
-        here ++ n.children.flatMap(collect(_, n.children.size))
-      case _ => Vector.empty
+    def collect(t: Tree): Vector[(Span, Element)] = {
+      val here: Vector[(Span, Element)] = t match {
+        case f: BinaryFormula     => Vector(f.left.outer -> Element.Formula, f.right.outer -> Element.Formula)
+        case f: UnaryFormula      => Vector(f.body.outer -> Element.Formula)
+        case f: QuantifiedFormula => (if (f.vars.size > 1) f.vars.map(_.span -> Element.Variable).toVector else Vector.empty) :+ (f.body.outer -> Element.Formula)
+        case f: AtomicFormula     => f.args.map(_.span -> Element.Term).toVector
+        case f: AtomicTerm        => f.args.map(_.span -> Element.Term).toVector
+        case f: Equality          => Vector(f.left.span -> Element.Term, f.right.span -> Element.Term)
+        case f: Inequality        => Vector(f.left.span -> Element.Term, f.right.span -> Element.Term)
+        case _                    => Vector.empty
+      }
+      here.filter(_._1.length > 0) ++ t.children.toVector.flatMap(collect)
     }
     doc.records.zipWithIndex.flatMap { case (record, r) =>
-      collect(record, 0).map { n =>
-        val category = Grammar.Categories.describe(n.kind)
-        val removed = n.span.length
-        val gapEnd = doc.nextTokenStart(n.span.end) - removed
-        () => Mutant(MutationKind.DeleteElement, s"delete $category '${doc.slice(n.span)}' at ${n.span.start}",
-          doc.edit(n.span, ""), r, r, doc.after(r),
-          Expectation(doc.previousTokenEnd(n.span.start), gapEnd, { case ErrorCause.MissingElement(c) => c == category; case _ => false }, s"missing $category"))
+      collect(record).map { case (span, category) =>
+        val gapEnd = doc.nextTokenStart(span.end) - span.length
+        () => Mutant(MutationKind.DeleteElement, s"delete ${category.label} '${doc.slice(span)}' at ${span.start}",
+          doc.edit(span, ""), r, r, doc.after(r),
+          Expectation(doc.previousTokenEnd(span.start), gapEnd, { case ErrorCause.MissingElement(c) => c == category; case _ => false }, s"missing ${category.label}"))
       }
     }
   }
@@ -123,10 +126,13 @@ final class Mutator(seed: Long) {
   }
 }
 
+/** A token of the original text, for choosing edit positions. */
+private final case class Tok(kind: TokenKind, text: String, span: Span)
+
 /** A parsed valid document with helpers for editing it by code-point offsets. */
-private final case class Doc(text: String, parsed: ParsedFile) {
-  val records: Vector[Cst] = parsed.cst.records
-  val tokens: Vector[Token] = LexerDriver.lex(text).tokens.map(t => Token(TokenKind(t.getType), t.getText, Span(t.getStartIndex, t.getStopIndex + 1)))
+private final case class Doc(text: String, parsed: TptpFile) {
+  val records: Vector[Record] = parsed.records
+  val tokens: Vector[Tok] = LexerDriver.lex(text).tokens.map(t => Tok(TokenKind(t.getType), t.getText, Span(t.getStartIndex, t.getStopIndex + 1)))
   private val length = text.codePointCount(0, text.length)
 
   private def index(cp: Int): Int = text.offsetByCodePoints(0, cp)

@@ -5,8 +5,9 @@ import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
 import tptp.syntax.*
+import tptp.syntax.tree.TptpFile
 
-final case class CorpusFile(name: String, text: String, parsed: ParsedFile)
+final case class CorpusFile(name: String, text: String, parsed: TptpFile)
 
 final case class Outcome(file: String, mutant: Mutant, result: CheckResult)
 
@@ -22,7 +23,7 @@ object Mutations {
       val text = Files.readString(p, ISO_8859_1)
       CorpusFile(root.relativize(p).toString, text, SyntaxParser.parse(text))
     }
-    (loaded.filter(_.parsed.errors.isEmpty), loaded.filter(_.parsed.errors.nonEmpty).map(_.name))
+    (loaded.filter(_.parsed.allErrors.isEmpty), loaded.filter(_.parsed.allErrors.nonEmpty).map(_.name))
   }
 
   /** Runs up to `perKind` mutants of every kind on every file, files in parallel. */
@@ -58,8 +59,8 @@ object Mutations {
   def runStreaming(root: Path, files: Vector[Path], seed: Long, perKind: Int, budgetKb: Int,
                    progress: Int => Unit): (Vector[Outcome], Vector[String]) = {
     val done = new java.util.concurrent.atomic.AtomicInteger()
-    // Each file holds two full parse trees (~180 bytes per byte of text) while it is mutated, so the number of
-    // files in flight is limited by their total size, not by thread count: many small files, few large ones.
+    // Each file holds two parse results while it is mutated, so the number of files in flight is limited by
+    // their total size, not by thread count: many small files, few large ones.
     val memory = new java.util.concurrent.Semaphore(budgetKb)
     val results = files.asJava.parallelStream().map { p =>
       val permits = math.min(budgetKb, math.max(1, (Files.size(p) / 1024).toInt))
@@ -69,7 +70,7 @@ object Mutations {
       val parsed = SyntaxParser.parse(text)
       val name = root.relativize(p).toString
       val r: Either[String, Vector[Outcome]] =
-        if (parsed.errors.nonEmpty) Left(name) else Right(mutate(CorpusFile(name, text, parsed), seed, perKind))
+        if (parsed.allErrors.nonEmpty) Left(name) else Right(mutate(CorpusFile(name, text, parsed), seed, perKind))
       progress(done.incrementAndGet())
       r
       } finally memory.release(permits)
@@ -101,7 +102,7 @@ object MutationReport {
       val misses = outcomes.filter(o => o.mutant.kind == kind && o.result.precision == Precision.Elsewhere).take(examplesPerKind)
       if (misses.isEmpty) Vector.empty
       else s"\n### ${kind.label}: errors of another kind (first $examplesPerKind)\n" +: misses.map { o =>
-        val got = o.result.errors.take(2).map(e => s"${CstPrinter.cause(e.cause)} '${e.message}' at ${e.span.start}").mkString("; ")
+        val got = o.result.errors.take(2).map(e => s"${tptp.syntax.tree.TreePrinter.cause(e.cause)} '${e.message}' at ${e.span.start}").mkString("; ")
         s"- `${o.file}`: ${o.mutant.description}; expected ${o.mutant.expected.describe} at ${o.mutant.expected.from}..${o.mutant.expected.to}; got ${if (got.isEmpty) "no error" else got}"
       }
     }

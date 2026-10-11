@@ -2,9 +2,10 @@ package tptp.analysis
 
 import java.nio.file.Path
 import tptp.semantics.*
-import tptp.syntax.*
+import tptp.syntax.{LineIndex, Span, SyntaxParser}
+import tptp.syntax.tree.*
 
-final case class IncludeRef(directive: IncludeDirective, target: Option[Path])
+final case class IncludeRef(include: Include, target: Option[Path])
 
 enum OutlineKind {
   case Formula, Include, Error
@@ -16,14 +17,13 @@ final case class OutlineItem(label: String, detail: String, kind: OutlineKind, s
 final case class FileAnalysis(
     path: Path,
     stamp: Stamp,
-    parsed: ParsedFile,
-    records: Vector[Record],
+    tree: TptpFile,
     includes: Vector[IncludeRef],
-    formulaNames: Map[String, Vector[Token]],
+    formulaNames: Map[String, Vector[Name]],
     outline: Vector[OutlineItem],
     diagnostics: Vector[Diagnostic],
 ) {
-  def lines: LineIndex = parsed.cst.lines
+  def lines: LineIndex = tree.lines
   def hasErrors: Boolean = diagnostics.exists(_.severity == Severity.Error)
 }
 
@@ -34,50 +34,47 @@ object FileAnalyzer {
       text: String,
       env: ResolutionEnv,
   ): FileAnalysis = {
-    val parsed = SyntaxParser.parse(text)
-    val records = parsed.cst.records.flatMap(Record.of)
+    val tree = SyntaxParser.parse(text)
     val includingDir = Option(path.getParent).getOrElse(path)
-    val includes = records.collect { case Record.Include(d) =>
-      IncludeRef(d, d.fileName.flatMap(IncludeResolver.resolve(_, includingDir, env)))
+    val includes = tree.records.collect { case i: Include =>
+      IncludeRef(i, i.fileName.valid.flatMap(n => IncludeResolver.resolve(n.key, includingDir, env)))
     }
     val syntaxDiagnostics =
-      parsed.errors.map(e => Diagnostic(e.span, Severity.Error, DiagnosticCode.Syntax(e.cause), e.message))
+      tree.allErrors.map(e => Diagnostic(e.span, Severity.Error, DiagnosticCode.Syntax(e.cause), e.message))
     val searched = IncludeResolver.searchDirs(includingDir, env).mkString(", ")
     val includeDiagnostics = for {
       ref <- includes if ref.target.isEmpty
-      name <- ref.directive.fileName
-      token <- ref.directive.fileNameToken
+      name <- ref.include.fileName.valid
     } yield Diagnostic(
-      token.span,
+      name.span,
       Severity.Error,
       DiagnosticCode.IncludeNotFound,
-      s"cannot find included file '$name' (searched: $searched)",
+      s"cannot find included file '${name.key}' (searched: $searched)",
     )
-    val formulaNames = records.collect { case Record.Formula(f) => f.name }.flatten.groupBy(Names.key)
-    FileAnalysis(path, stamp, parsed, records, includes, formulaNames, outline(parsed.cst),
-      syntaxDiagnostics ++ includeDiagnostics)
+    val formulaNames = tree.records.flatMap {
+      case r: FofRecord   => r.name.valid
+      case r: OtherRecord => r.name.valid
+      case _              => None
+    }.groupBy(_.key)
+    FileAnalysis(path, stamp, tree, includes, formulaNames, outline(tree.records), syntaxDiagnostics ++ includeDiagnostics)
   }
 
-  private def outline(cst: CstFile): Vector[OutlineItem] =
-    cst.records.collect { case n: Node => n }.map { n =>
-      Record.of(n) match {
-        case Some(Record.Formula(f)) =>
-          OutlineItem(
-            f.name.map(Names.key).getOrElse("<error>"),
-            (f.language +: f.role.map(_.text).toVector).mkString(", "),
-            OutlineKind.Formula,
-            n.span,
-            f.name.orElse(f.keyword).map(_.span).getOrElse(n.span),
-          )
-        case Some(Record.Include(d)) =>
-          OutlineItem(
-            d.fileName.getOrElse("<error>"),
-            "include",
-            OutlineKind.Include,
-            n.span,
-            d.fileNameToken.orElse(d.keyword).map(_.span).getOrElse(n.span),
-          )
-        case None => OutlineItem("<error>", "", OutlineKind.Error, n.span, n.span)
-      }
+  private def outline(records: Vector[Record]): Vector[OutlineItem] =
+    records.map {
+      case r: FofRecord   => formula(r, "fof", r.name, r.role)
+      case r: OtherRecord => formula(r, r.language.toString.toLowerCase, r.name, r.role)
+      case r: Include =>
+        OutlineItem(r.fileName.valid.map(_.key).getOrElse("<error>"), "include", OutlineKind.Include, r.span,
+          r.fileName.valid.map(_.span).getOrElse(r.keyword))
+      case r: ErrorRecord => OutlineItem("<error>", "", OutlineKind.Error, r.span, r.span)
     }
+
+  private def formula(r: Record, language: String, name: NameNode, role: Role): OutlineItem =
+    OutlineItem(
+      name.valid.map(_.key).getOrElse("<error>"),
+      (language +: role.word.valid.map(_.text).toVector).mkString(", "),
+      OutlineKind.Formula,
+      r.span,
+      name.valid.map(_.span).getOrElse(r.keyword),
+    )
 }

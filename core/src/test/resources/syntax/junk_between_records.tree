@@ -1,0 +1,15 @@
+FofRecord 0..30
+  ! UnexpectedToken(Lower_word) 18..30 unexpected 'this' after the end of the record
+  Name "a" 4..5
+  Role 7..12
+    Name "axiom" 7..12
+  Logical 14..15
+    AtomicFormula Plain 14..15
+      Name "p" 14..15
+FofRecord 31..48
+  Name "b" 35..36
+  Role 38..43
+    Name "axiom" 38..43
+  Logical 45..46
+    AtomicFormula Plain 45..46
+      Name "q" 45..46

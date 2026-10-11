@@ -1,0 +1,16 @@
+FofRecord 0..21
+  Name "1" 4..5
+  Role 7..12
+    Name "axiom" 7..12
+  Logical 14..19
+    AtomicFormula Plain 14..19
+      Name "p" 14..15
+      NumberTerm 42 16..18
+FofRecord 22..43
+  Name "b" 26..27
+  Role 29..34
+    Name "axiom" 29..34
+  Logical 36..41
+    AtomicFormula Plain 36..41
+      Name "q" 36..37
+      NumberTerm -1 38..40

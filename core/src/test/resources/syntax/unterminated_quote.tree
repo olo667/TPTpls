@@ -1,0 +1,15 @@
+! LexerError 4..5 unexpected character '''
+FofRecord 0..20
+  Name "abc" 5..8
+  Role 10..15
+    Name "axiom" 10..15
+  Logical 17..18
+    AtomicFormula Plain 17..18
+      Name "p" 17..18
+FofRecord 21..38
+  Name "b" 25..26
+  Role 28..33
+    Name "axiom" 28..33
+  Logical 35..36
+    AtomicFormula Plain 35..36
+      Name "q" 35..36

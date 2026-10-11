@@ -14,33 +14,35 @@ enum Segment {
 object RecordSplitter {
   val recordStarts: Set[TokenKind] = Grammar.Tokens.recordKeywords
 
-  def split(tokens: Vector[AntlrToken]): Vector[Segment] = {
-    val out = Vector.newBuilder[Segment]
-    var current = Vector.newBuilder[AntlrToken]
-    var currentIsRecord = false
-    var nonEmpty = false
-    def flush(): Unit =
-      if (nonEmpty) {
-        val ts = current.result()
-        out += (if (currentIsRecord) Segment.Record(ts) else Segment.Junk(ts))
-      }
-    for ((t, i) <- tokens.zipWithIndex) {
-      if (startsRecord(tokens, i)) {
-        flush()
-        current = Vector.newBuilder[AntlrToken]
-        currentIsRecord = true
-        nonEmpty = false
-      }
-      current += t
-      nonEmpty = true
+  def split(tokens: Iterator[AntlrToken]): Iterator[Segment] = new Iterator[Segment] {
+    private val ahead = scala.collection.mutable.Queue.empty[AntlrToken]
+    private var previous: Option[AntlrToken] = None
+    private def peek(n: Int): Option[AntlrToken] = {
+      while (ahead.size <= n && tokens.hasNext) ahead += tokens.next()
+      ahead.lift(n)
     }
-    flush()
-    out.result()
+    private def startsHere: Boolean = peek(0).exists(t => startsRecord(previous, t, peek(1)))
+
+    def hasNext: Boolean = peek(0).isDefined
+
+    def next(): Segment = {
+      if (!hasNext) throw new NoSuchElementException("no more segments")
+      val isRecord = startsHere
+      val out = Vector.newBuilder[AntlrToken]
+      var first = true
+      while (peek(0).isDefined && (first || !startsHere)) {
+        val t = ahead.dequeue()
+        out += t
+        previous = Some(t)
+        first = false
+      }
+      if (isRecord) Segment.Record(out.result()) else Segment.Junk(out.result())
+    }
   }
 
-  private def startsRecord(tokens: Vector[AntlrToken], i: Int): Boolean =
-    recordStarts(TokenKind(tokens(i).getType)) && (
-      tokens.lift(i + 1).exists(next => TokenKind(next.getType) == Grammar.Tokens.openParen) ||
-        tokens.lift(i - 1).exists(prev => TokenKind(prev.getType) == Grammar.Tokens.recordEnd)
+  private def startsRecord(previous: Option[AntlrToken], t: AntlrToken, next: Option[AntlrToken]): Boolean =
+    recordStarts(TokenKind(t.getType)) && (
+      next.exists(n => TokenKind(n.getType) == Grammar.Tokens.openParen) ||
+        previous.exists(p => TokenKind(p.getType) == Grammar.Tokens.recordEnd)
     )
 }

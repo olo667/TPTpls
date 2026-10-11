@@ -3,7 +3,7 @@ package tptp.analysis
 import java.nio.file.Path
 import scala.collection.mutable
 import tptp.semantics.*
-import tptp.syntax.{Names, Token}
+import tptp.syntax.Span
 
 final case class RootAnalysis(file: FileAnalysis, diagnostics: Vector[Diagnostic])
 
@@ -38,7 +38,7 @@ final class ProjectAnalyzer(sources: SourceProvider, initialEnv: ResolutionEnv) 
   /** Whether every include of `a` still resolves to the same file: files may appear or disappear. */
   private def resolutionUnchanged(a: FileAnalysis): Boolean = {
     val dir = Option(a.path.getParent).getOrElse(a.path)
-    a.includes.forall(ref => ref.directive.fileName.flatMap(IncludeResolver.resolve(_, dir, env)) == ref.target)
+    a.includes.forall(ref => ref.include.fileName.valid.flatMap(n => IncludeResolver.resolve(n.key, dir, env)) == ref.target)
   }
 
   def includeClosure(path: Path): Vector[FileAnalysis] = {
@@ -73,17 +73,17 @@ final class ProjectAnalyzer(sources: SourceProvider, initialEnv: ResolutionEnv) 
   }
 
   private def includeDiagnostics(root: FileAnalysis, ref: IncludeRef): Vector[Diagnostic] =
-    (ref.target, ref.directive.fileNameToken) match {
-      case (Some(target), Some(nameToken)) =>
+    (ref.target, ref.include.fileName.valid) match {
+      case (Some(target), Some(name)) =>
         fileAnalysis(target) match {
           case None =>
-            Vector(Diagnostic(nameToken.span, Severity.Error, DiagnosticCode.IncludeNotFound,
+            Vector(Diagnostic(name.span, Severity.Error, DiagnosticCode.IncludeNotFound,
               s"cannot read included file '$target'"))
           case Some(_) =>
             val closure = includeClosure(target)
-            findCycle(root.path, target).map(cycleDiagnostic(nameToken, _)).toVector ++
+            findCycle(root.path, target).map(cycleDiagnostic(name.span, _)).toVector ++
               selectionDiagnostics(ref, closure) ++
-              errorsDiagnostic(nameToken, closure.filterNot(_.path == root.path)).toVector
+              errorsDiagnostic(name.span, closure.filterNot(_.path == root.path)).toVector
         }
       case _ => Vector.empty
     }
@@ -103,28 +103,28 @@ final class ProjectAnalyzer(sources: SourceProvider, initialEnv: ResolutionEnv) 
     visit(start, List(rootPath))
   }
 
-  private def cycleDiagnostic(at: Token, cycle: List[Path]): Diagnostic =
-    Diagnostic(at.span, Severity.Error, DiagnosticCode.IncludeCycle,
+  private def cycleDiagnostic(at: Span, cycle: List[Path]): Diagnostic =
+    Diagnostic(at, Severity.Error, DiagnosticCode.IncludeCycle,
       s"include cycle: ${cycle.map(_.getFileName.toString).mkString(" → ")}")
 
   private def selectionDiagnostics(ref: IncludeRef, closure: Vector[FileAnalysis]): Vector[Diagnostic] = {
     val known = closure.flatMap(_.formulaNames.keySet).toSet
-    val fileName = ref.directive.fileName.getOrElse("")
-    ref.directive.selection.getOrElse(Vector.empty).filterNot(t => known(Names.key(t))).map { t =>
-      Diagnostic(t.span, Severity.Error, DiagnosticCode.SelectedNameNotFound,
-        s"no formula named '${Names.key(t)}' in '$fileName' or the files it includes")
+    val fileName = ref.include.fileName.valid.map(_.key).getOrElse("")
+    ref.include.selection.getOrElse(Vector.empty).flatMap(_.valid).filterNot(n => known(n.key)).toVector.map { n =>
+      Diagnostic(n.span, Severity.Error, DiagnosticCode.SelectedNameNotFound,
+        s"no formula named '${n.key}' in '$fileName' or the files it includes")
     }
   }
 
-  private def errorsDiagnostic(at: Token, included: Vector[FileAnalysis]): Option[Diagnostic] = {
+  private def errorsDiagnostic(at: Span, included: Vector[FileAnalysis]): Option[Diagnostic] = {
     val withErrors = included.filter(_.hasErrors)
     Option.when(withErrors.nonEmpty) {
       val count = withErrors.map(_.diagnostics.count(_.severity == Severity.Error)).sum
       val related = withErrors.take(10).flatMap { a =>
         a.diagnostics.find(_.severity == Severity.Error).map(d => RelatedInfo(Location(a.path, d.span, a.lines), d.message))
       }
-      Diagnostic(at.span, Severity.Error, DiagnosticCode.ErrorsInInclude,
-        s"included files contain $count error(s)", related)
+      Diagnostic(at, Severity.Error, DiagnosticCode.ErrorsInInclude, s"included files contain $count error(s)", related)
     }
   }
+
 }

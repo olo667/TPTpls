@@ -1,0 +1,9 @@
+ErrorRecord UnexpectedToken(Lower_word) 0..11 "expected a record such as fof(...) or include(...), found 'hello'"
+  ! UnexpectedToken(Lower_word) 0..11 expected a record such as fof(...) or include(...), found 'hello'
+FofRecord 12..29
+  Name "a" 16..17
+  Role 19..24
+    Name "axiom" 19..24
+  Logical 26..27
+    AtomicFormula Plain 26..27
+      Name "p" 26..27

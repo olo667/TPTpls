@@ -67,6 +67,13 @@ final class ErrorCauseStrategy extends DefaultErrorStrategy {
 }
 
 object ErrorCauseStrategy {
+  /** The cause of an exception that ended a rule. */
+  def causeOf(e: RecognitionException): ErrorCause = e match {
+    case m: InputMismatchException => ErrorCause.InputMismatch(kinds(m.getExpectedTokens))
+    case _: NoViableAltException   => ErrorCause.NoViableAlternative
+    case _                         => ErrorCause.IncompleteRule
+  }
+
   def kinds(set: IntervalSet): Set[TokenKind] =
     set.toList.asScala.map(_.intValue).filter(_ >= Token.EOF).map(TokenKind(_)).toSet
 

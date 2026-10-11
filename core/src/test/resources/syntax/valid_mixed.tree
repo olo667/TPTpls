@@ -1,0 +1,18 @@
+Include 0..30
+  Name "'Axioms/SET001+0.ax'" 8..28
+Include 31..73 selection
+  Name "'Axioms/SET001+1.ax'" 39..59
+  Name "ax1" 62..65
+  Name "ax2" 67..70
+OtherRecord Thf 74..94
+  Name "t" 78..79
+  Role 81..85
+    Name "type" 81..85
+OtherRecord Tff 95..145
+  Name "f" 99..100
+  Role 102..107
+    Name "axiom" 102..107
+OtherRecord Cnf 146..176
+  Name "c1" 150..152
+  Role 154..159
+    Name "axiom" 154..159

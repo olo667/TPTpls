@@ -1,5 +1,7 @@
 package tptp.syntax
 
+import tptp.syntax.tree.TptpFile
+
 class PredictionCacheSuite extends munit.FunSuite {
   private val broken = (1 to 300).map(i => s"fof(a$i, axiom, ${"(" * (i % 7)}p$i & ${"q(X," * (i % 5)} )).\n").mkString
 
@@ -18,7 +20,7 @@ class PredictionCacheSuite extends munit.FunSuite {
     val warm = SyntaxParser.parse(broken)
     PredictionCache.reset()
     val again = SyntaxParser.parse(broken)
-    def result(p: ParsedFile) = (p.cst.records, p.errors) // LineIndex has no structural equality
+    def result(p: TptpFile) = (p.records, p.allErrors) // LineIndex has no structural equality
     assertEquals(result(warm), result(cold))
     assertEquals(result(again), result(cold))
   }

@@ -1,0 +1,18 @@
+FofRecord 0..18
+  ! MissingToken(')') 18..18 missing ')'
+  ! MissingToken('.') 18..18 missing '.'
+  Name "a" 4..5
+  Role 7..12
+    Name "axiom" 7..12
+  Logical 14..18
+    AtomicFormula Plain 14..18
+      Name "p" 14..15
+      Variable 16..17
+        Name "X" 16..17
+FofRecord 19..36
+  Name "b" 23..24
+  Role 26..31
+    Name "axiom" 26..31
+  Logical 33..34
+    AtomicFormula Plain 33..34
+      Name "q" 33..34

@@ -2,6 +2,7 @@
 
 An LSP server for the [TPTP](https://tptp.org) language, written in Scala 3.
 Status: v0.01 — syntax diagnostics, document outline, include resolution and include navigation. No type checking yet.
+See the [roadmap](docs/ROADMAP.md) for planned features.
 
 ## Build and run
 
@@ -62,13 +63,14 @@ vim.api.nvim_create_autocmd('FileType', {
 
 This is an alpha. Known problems, to be addressed in later versions:
 
-- **Large files use a lot of memory.** The parse tree takes about 180 bytes per byte of text, and
-  included files are cached with their full tree. Including an axiom file of several MB (some TPTP
-  axiom sets are hundreds of MB) can exhaust the heap.
+- **Large files still cost memory.** The syntax tree retains about 15 bytes per byte of text, and
+  parsing peaks at about 35–50 bytes per byte (measured on 6–72 MB axiom files). Included files are
+  cached with their full tree, so the largest TPTP axiom sets (`CSR002+5.ax`, 477 MB) need a heap of
+  many GB.
 - **Extremely deep nesting fails.** The analysis thread has a 256 MB stack (the deepest TPTP library
   formula, in `HWV063+1.p`, needs 32 MB); a formula nested beyond that leaves the file without diagnostics.
-- **The TPTP library test has no size limit**, so running it on the whole library fails on the largest
-  files. The mutation runner skips files over 256 KB instead (`--max-size-kb`).
+- **The TPTP library test has no size limit**, so with the default test heap it runs out of memory on
+  the largest axiom files. The mutation runner skips files over 256 KB instead (`--max-size-kb`).
 - **Some repairs are imprecise.** A deleted `)` is often reported at a later position where it would
   also fit; a wrong operator (`p § q`, `~ [X]` instead of `! [X]`) is reported with ANTLR's generic
   messages, or as two unexpected tokens.

@@ -1,0 +1,19 @@
+FofRecord 0..21
+  ! MissingElement(Formula) 19..19 missing formula
+  ! MissingToken(')') 20..20 missing ')'
+  Name "a" 4..5
+  Role 7..12
+    Name "axiom" 7..12
+  Logical 14..20
+    BinaryFormula 15..19 outer 14..20
+      Op And 17..18
+      AtomicFormula Plain 15..16
+        Name "p" 15..16
+      ErrorNode MissingElement(Formula) 19..19 "missing formula"
+FofRecord 22..39
+  Name "b" 26..27
+  Role 29..34
+    Name "axiom" 29..34
+  Logical 36..37
+    AtomicFormula Plain 36..37
+      Name "q" 36..37

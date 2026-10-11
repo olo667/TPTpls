@@ -1,99 +1,63 @@
 package tptp.syntax
 
-class SyntaxParserSuite extends munit.FunSuite {
-  private def errorNodes(c: Cst): Vector[ErrorNode] = c match {
-    case n: Node      => n.children.flatMap(errorNodes)
-    case e: ErrorNode => Vector(e)
-    case _: Token     => Vector.empty
-  }
-  private def recordHasErrors(c: Cst): Boolean = c match {
-    case n: Node => n.hasErrors
-    case _       => true
-  }
+import tptp.syntax.tree.*
 
+class SyntaxParserSuite extends munit.FunSuite {
   test("valid records parse without errors") {
     val parsed = SyntaxParser.parse("fof(a, axiom, p).\nfof(b, conjecture, ~ q(X)).\n")
-    assertEquals(parsed.errors, Vector.empty)
-    assertEquals(parsed.cst.records.size, 2)
-    parsed.cst.records.foreach {
-      case n: Node => assertEquals(n.kind.name, "tptp_input"); assert(!n.hasErrors)
-      case other   => fail(s"unexpected $other")
-    }
+    assertEquals(parsed.allErrors, Vector.empty)
+    assertEquals(parsed.records.map(_.getClass.getSimpleName), Vector("FofRecord", "FofRecord"))
   }
 
   test("empty and comment-only input") {
-    assertEquals(SyntaxParser.parse("").cst.records, Vector.empty)
-    assertEquals(SyntaxParser.parse("% only a comment\n").errors, Vector.empty)
+    assertEquals(SyntaxParser.parse("").records, Vector.empty)
+    assertEquals(SyntaxParser.parse("% only a comment\n").allErrors, Vector.empty)
   }
 
   test("a missing terminator does not affect the next record") {
     val text = "fof(a,axiom,p(X)\nfof(b,axiom,q)."
     val parsed = SyntaxParser.parse(text)
     val bStart = text.indexOf("fof(b")
-    assert(parsed.errors.nonEmpty)
-    assert(parsed.errors.forall(_.span.end <= bStart), parsed.errors)
-    assert(recordHasErrors(parsed.cst.records(0)))
-    assert(!recordHasErrors(parsed.cst.records(1)))
+    assert(parsed.allErrors.nonEmpty)
+    assert(parsed.allErrors.forall(_.span.end <= bStart), parsed.allErrors)
+    assertEquals(parsed.records(1).errors, Vector.empty)
   }
 
   test("a broken formula does not affect the next record") {
     val parsed = SyntaxParser.parse("fof(c, axiom, (r & ).\nfof(d,axiom,s).")
-    assert(parsed.errors.nonEmpty)
-    assert(!recordHasErrors(parsed.cst.records(1)))
+    assert(parsed.allErrors.nonEmpty)
+    assertEquals(parsed.records(1).errors, Vector.empty)
   }
 
-  test("a missing record terminator becomes a zero-width error node where it is missing") {
-    // ANTLR inserts single missing tokens only where its prediction is already committed; a missing
-    // terminator at the end of a record is the typical case (see the Task 5 ruling in the ledger).
+  test("a missing record terminator is reported where it is missing") {
     val parsed = SyntaxParser.parse("fof(a,axiom,p(X)")
-    val missing = errorNodes(parsed.cst.records(0)).collect {
-      case e @ ErrorNode(ErrorCause.MissingToken(_), _, _, _) => e
-    }
-    assertEquals(missing.map(_.cause),
-      Vector(ErrorCause.MissingToken(Set(TokenKind.literal(")"))), ErrorCause.MissingToken(Set(TokenKind.literal(".")))))
-    assertEquals(missing.map(_.span), Vector(Span(16, 16), Span(16, 16)))
-    assertEquals(missing.map(_.message), Vector("missing ')'", "missing '.'"))
-    assertEquals(parsed.errors.map(_.span), Vector(Span(16, 16), Span(16, 16)))
+    assertEquals(parsed.allErrors.map(e => (e.message, e.span)), Vector(("missing ')'", Span(16, 16)), ("missing '.'", Span(16, 16))))
   }
 
-  test("an unexpected token is kept in an error node with its text") {
+  test("an unexpected token is reported with its text") {
     val parsed = SyntaxParser.parse("fof(a,axiom,p q).")
-    val skipped = errorNodes(parsed.cst.records(0)).flatMap(_.skipped).map(_.text)
-    assert(skipped.contains("q"), parsed.cst)
-    assertEquals(parsed.errors.size, 1)
-  }
-
-  test("junk before the first record is one error node") {
-    val parsed = SyntaxParser.parse("hello fof(a,axiom,p).")
-    parsed.cst.records(0) match {
-      case e: ErrorNode =>
-        assertEquals(e.cause, ErrorCause.UnexpectedToken(TokenKind.symbolic("Lower_word")))
-        assertEquals(e.span, Span(0, 5))
-      case other => fail(s"expected an error node, got $other")
-    }
-    assertEquals(parsed.errors.size, 1)
-    assert(!recordHasErrors(parsed.cst.records(1)))
+    assertEquals(parsed.allErrors.map(_.message), Vector("unexpected 'q'"))
   }
 
   test("trailing tokens after a complete record are reported once") {
     val text = "fof(a,axiom,p). ) )\nfof(b,axiom,q)."
     val parsed = SyntaxParser.parse(text)
-    assertEquals(parsed.errors.size, 1)
-    assertEquals(parsed.errors.head.span.start, text.indexOf(") )"))
-    assert(!recordHasErrors(parsed.cst.records(1)))
+    assertEquals(parsed.allErrors.size, 1)
+    assertEquals(parsed.allErrors.head.span.start, text.indexOf(") )"))
+    assertEquals(parsed.records(1).errors, Vector.empty)
   }
 
   test("comments do not affect records") {
     val text = "% header\nfof(a, axiom, p). /* block */\n%$ defined\nfof(b, axiom, q)."
     val parsed = SyntaxParser.parse(text)
-    assertEquals(parsed.errors, Vector.empty)
-    assertEquals(parsed.cst.records.size, 2)
+    assertEquals(parsed.allErrors, Vector.empty)
+    assertEquals(parsed.records.size, 2)
   }
 
   test("a lexer error skips one character, so an unterminated quote does not swallow the rest of the line") {
     val parsed = SyntaxParser.parse("fof('abc, axiom, p).")
-    assertEquals(parsed.errors.map(e => (e.cause, e.span)), Vector((ErrorCause.LexerError, Span(4, 5))))
-    assertEquals(parsed.errors.map(_.message), Vector("unexpected character '''"))
-    assertEquals(parsed.cst.records.size, 1)
+    assertEquals(parsed.allErrors.map(e => (e.cause, e.span)), Vector((ErrorCause.LexerError, Span(4, 5))))
+    assertEquals(parsed.allErrors.map(_.message), Vector("unexpected character '''"))
+    assertEquals(parsed.records.size, 1)
   }
 }

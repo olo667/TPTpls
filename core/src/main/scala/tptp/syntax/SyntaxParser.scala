@@ -6,47 +6,64 @@ import org.antlr.v4.runtime.misc.ParseCancellationException
 import tptp.syntax.generated.TPTPParser
 
 import scala.jdk.CollectionConverters.*
-
-final case class ParsedFile(cst: CstFile, errors: Vector[SyntaxError])
+import tptp.syntax.tree.{ErrorRecord, Lowering, Record, RecordErrors, TptpFile}
 
 object SyntaxParser {
 
-  /** Parses a whole document. Never throws on malformed input. Afterwards the shared prediction cache is
-    * trimmed to `cacheLimit`, so long-running use (the server, mutation runs) has bounded memory. */
-  def parse(text: String, cacheLimit: PredictionCache.Limit = PredictionCache.DefaultLimit): ParsedFile = {
-    val lexed = LexerDriver.lex(text)
-    val records = Vector.newBuilder[Cst]
-    val errors = Vector.newBuilder[SyntaxError] ++= lexed.errors
+  /** Parses a whole document into the compact tree. Never throws on malformed input. Each record's parse tree
+    * is lowered and dropped before the next record is parsed. Afterwards the shared prediction cache is trimmed to
+    * `cacheLimit`, so long-running use (the server, mutation runs) has bounded memory. */
+  def parse(text: String, cacheLimit: PredictionCache.Limit = PredictionCache.DefaultLimit): TptpFile = {
+    val lexed = LexerDriver.stream(text)
+    val records = Vector.newBuilder[Record]
     val repairBudget = new RepairBudget
     for (segment <- RecordSplitter.split(lexed.tokens)) {
-      segment match {
-        case Segment.Junk(tokens) =>
-          val first = tokens.head.getText
-          val e = junk(tokens, s"expected a record such as fof(...) or include(...), found '$first'")
-          records += e
-          errors += SyntaxError(e.cause, e.message, e.span)
-        case Segment.Record(tokens) =>
-          val (node, recordErrors) = parseRecord(tokens, repairBudget)
-          records += node
-          errors ++= recordErrors
-      }
+      records += (segment match {
+        case Segment.Junk(tokens)   => junkRecord(tokens)
+        case Segment.Record(tokens) => lowerRecord(tokens, repairBudget)
+      })
     }
-    val parsed = ParsedFile(CstFile(records.result(), LineIndex(text)), errors.result())
+    val file = TptpFile(records.result(), lexed.errors, LineIndex(text))
     PredictionCache.trim(cacheLimit)
-    parsed
+    file
   }
 
-  private def parseRecord(tokens: Vector[AntlrToken], repairBudget: RepairBudget): (Node, Vector[SyntaxError]) = {
-    val start = tokens.head.getStartIndex
+  private def junkRecord(tokens: Vector[AntlrToken]): Record = {
+    val cause = ErrorCause.UnexpectedToken(TokenKind(tokens.head.getType))
+    val message = s"expected a record such as fof(...) or include(...), found '${tokens.head.getText}'"
+    val span = AntlrTokens.span(tokens.head).cover(AntlrTokens.span(tokens.last))
+    ErrorRecord(cause, message, Vector(SyntaxError(cause, message, span)), span)
+  }
+
+  private def lowerRecord(tokens: Vector[AntlrToken], repairBudget: RepairBudget): Record =
     fastParse(tokens) match {
-      case Right(tree) => (CstBuilder.build(tree, new ErrorCauseStrategy, start), Vector.empty)
+      case Right(tree) => Lowering.record(tree, Vector.empty, None)
       case Left(complete) =>
         // a record that parsed but left trailing tokens keeps the trailing-junk handling
         val repaired = if (complete) None else RecordRepair.repair(tokens, repairBudget)
         repaired match {
-          case Some(repair) => buildRepaired(repair, start)
-          case None         => recoverByDefault(tokens, start)
+          case Some(repair) =>
+            val tree = fastParse(repair.tokens).getOrElse(throw new IllegalStateException("repaired record does not parse"))
+            Lowering.record(tree, RecordErrors.ofRepair(tree, repair.deleted), None)
+          case None => lowerByDefault(tokens)
         }
+    }
+
+  private def lowerByDefault(tokens: Vector[AntlrToken]): Record = {
+    val strategy = new ErrorCauseStrategy
+    val slow = newParser(tokens)
+    slow.setErrorHandler(strategy)
+    val tree = slow.tptp_input()
+    val trailing = remaining(slow)
+    if (trailing.isEmpty) Lowering.record(tree, strategy.errors, None)
+    else {
+      val span = AntlrTokens.span(trailing.head).cover(AntlrTokens.span(trailing.last))
+      val message = s"unexpected '${trailing.head.getText}' after the end of the record"
+      // report trailing tokens only if recovery inside the record reported nothing
+      val extra =
+        if (strategy.errors.isEmpty) Vector(SyntaxError(ErrorCause.UnexpectedToken(TokenKind(trailing.head.getType)), message, span))
+        else Vector.empty
+      Lowering.record(tree, strategy.errors ++ extra, Some(span))
     }
   }
 
@@ -61,56 +78,6 @@ object SyntaxParser {
     } catch { case _: ParseCancellationException => Left(false) }
   }
 
-  private def buildRepaired(repair: RecordRepair.Repair, start: Int): (Node, Vector[SyntaxError]) = {
-    val tree = fastParse(repair.tokens).getOrElse(throw new IllegalStateException("repaired record does not parse"))
-    val built = CstBuilder.build(tree, new ErrorCauseStrategy, start)
-    val node = repair.deleted.foldLeft(built) { (n, t) =>
-      val tok = AntlrTokens.toCst(t)
-      insertByPosition(n, ErrorNode(ErrorCause.UnexpectedToken(tok.kind), s"unexpected '${tok.text}'", tok.span, Vector(tok)))
-    }
-    val errors = errorNodes(node).map { e =>
-      // a contained group is reported where parsing failed, not at the start of the whole group
-      val at = e.cause match { case ErrorCause.Unparsable(at) => at; case _ => e.span }
-      SyntaxError(e.cause, e.message, at)
-    }
-    (node, errors)
-  }
-
-  /** Puts `e` into the innermost node whose span strictly encloses it, in source order. */
-  private def insertByPosition(node: Node, e: ErrorNode): Node = {
-    val inner = node.children.indexWhere {
-      case n: Node => n.span.start < e.span.start && e.span.end < n.span.end
-      case _       => false
-    }
-    if (inner >= 0) node.copy(children = node.children.updated(inner, insertByPosition(node.children(inner).asInstanceOf[Node], e)))
-    else {
-      val at = node.children.indexWhere(_.span.start >= e.span.end) match { case -1 => node.children.size; case i => i }
-      node.copy(children = node.children.patch(at, Vector(e), 0), span = node.span.cover(e.span))
-    }
-  }
-
-  private def errorNodes(c: Cst): Vector[ErrorNode] = c match {
-    case n: Node      => n.children.flatMap(errorNodes)
-    case e: ErrorNode => Vector(e)
-    case _: Token     => Vector.empty
-  }
-
-  private def recoverByDefault(tokens: Vector[AntlrToken], start: Int): (Node, Vector[SyntaxError]) = {
-    val strategy = new ErrorCauseStrategy
-    val slow = newParser(tokens)
-    slow.setErrorHandler(strategy)
-    val node = CstBuilder.build(slow.tptp_input(), strategy, start)
-    val trailing = remaining(slow)
-    if (trailing.isEmpty) (node, strategy.errors)
-    else {
-      val e = junk(trailing, s"unexpected '${trailing.head.getText}' after the end of the record")
-      val withTrailing = node.copy(children = node.children :+ e, span = node.span.cover(e.span))
-      // report trailing tokens only if recovery inside the record reported nothing
-      val extra = if (strategy.errors.isEmpty) Vector(SyntaxError(e.cause, e.message, e.span)) else Vector.empty
-      (withTrailing, strategy.errors ++ extra)
-    }
-  }
-
   private def newParser(tokens: Vector[AntlrToken]): TPTPParser = {
     val parser = PredictionCache.install(new TPTPParser(new CommonTokenStream(new ListTokenSource(tokens.asJava))))
     parser.removeErrorListeners()
@@ -123,8 +90,4 @@ object SyntaxParser {
     (stream.index until stream.size).map(stream.get).filter(_.getType != AntlrToken.EOF).toVector
   }
 
-  private def junk(tokens: Vector[AntlrToken], message: String): ErrorNode = {
-    val cst = tokens.map(AntlrTokens.toCst)
-    ErrorNode(ErrorCause.UnexpectedToken(cst.head.kind), message, cst.head.span.cover(cst.last.span), cst)
-  }
 }

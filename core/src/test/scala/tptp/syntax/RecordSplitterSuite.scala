@@ -2,7 +2,7 @@ package tptp.syntax
 
 class RecordSplitterSuite extends munit.FunSuite {
   private def segments(text: String): Vector[(String, String)] =
-    RecordSplitter.split(LexerDriver.lex(text).tokens).map {
+    RecordSplitter.split(LexerDriver.lex(text).tokens.iterator).toVector.map {
       case Segment.Record(ts) => "record" -> ts.map(_.getText).mkString(" ")
       case Segment.Junk(ts)   => "junk" -> ts.map(_.getText).mkString(" ")
     }
@@ -57,6 +57,6 @@ class RecordSplitterSuite extends munit.FunSuite {
   test("token offsets are code points") {
     val ts = LexerDriver.lex("% 😀\nfof(a,axiom,p).").tokens
     val p = ts.find(_.getText == "p").get
-    assertEquals(AntlrTokens.toCst(p).span, Span(16, 17))
+    assertEquals(AntlrTokens.span(p), Span(16, 17))
   }
 }

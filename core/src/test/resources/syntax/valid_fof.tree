@@ -1,0 +1,36 @@
+FofRecord 28..68
+  Name "ax1" 32..35
+  Role 37..42
+    Name "axiom" 37..42
+  Logical 44..66
+    QuantifiedFormula 44..66
+      Op ForAll 44..45
+      Name "X" 47..48
+      BinaryFormula 53..65 outer 52..66
+        Op Impl 58..60
+        AtomicFormula Plain 53..57
+          Name "p" 53..54
+          Variable 55..56
+            Name "X" 55..56
+        AtomicFormula Plain 61..65
+          Name "q" 61..62
+          Variable 63..64
+            Name "X" 63..64
+FofRecord 69..106
+  Name "'quoted name'" 73..86
+  Role 88..98
+    Name "hypothesis" 88..98
+  Logical 100..104
+    AtomicFormula Plain 100..104
+      Name "p" 100..101
+      AtomicTerm Plain 102..103
+        Name "a" 102..103
+FofRecord 107..135
+  Name "goal" 111..115
+  Role 117..127
+    Name "conjecture" 117..127
+  Logical 129..133
+    AtomicFormula Plain 129..133
+      Name "q" 129..130
+      AtomicTerm Plain 131..132
+        Name "a" 131..132

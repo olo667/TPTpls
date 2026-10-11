@@ -21,7 +21,7 @@ class CorpusSuite extends munit.FunSuite {
       }
     }
     val failing = files
-      .filter(p => SyntaxParser.parse(Files.readString(p, ISO_8859_1)).errors.nonEmpty)
+      .filter(p => SyntaxParser.parse(Files.readString(p, ISO_8859_1)).allErrors.nonEmpty)
       .map(p => base.relativize(p).toString)
       .toSet
     val lines = Files.readAllLines(knownFailuresFile, UTF_8).asScala.toVector
