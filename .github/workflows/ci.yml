@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: vscode/package-lock.json
+
+      - name: Check that the tag matches the versions
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          sbt_version=$(sed -nE 's/^ThisBuild \/ version := "(.*)"/\1/p' build.sbt)
+          ext_version=$(node -p 'require("./vscode/package.json").version')
+          [ "$tag" = "$sbt_version" ] && [ "$tag" = "$ext_version" ] ||
+            { echo "tag $tag, build.sbt $sbt_version, vscode/package.json $ext_version"; exit 1; }
+
+      - name: Test and build the server jar
+        run: sbt test server/assembly
+
+      - name: Package the VS Code extension
+        working-directory: vscode
+        run: |
+          mkdir -p server
+          cp ../server/target/scala-3.3.8/tptp-lsp.jar server/
+          cp ../LICENSE .
+          npm ci
+          npx --yes @vscode/vsce package -o tptp-lsp.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tptp-lsp
+          path: |
+            server/target/scala-3.3.8/tptp-lsp.jar
+            vscode/tptp-lsp.vsix
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tptp-lsp
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes \
+            dist/server/target/scala-3.3.8/tptp-lsp.jar dist/vscode/tptp-lsp.vsix
+
+      - name: Publish to the VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx --yes @vscode/vsce publish --packagePath dist/vscode/tptp-lsp.vsix
+
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx --yes ovsx publish dist/vscode/tptp-lsp.vsix

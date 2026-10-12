@@ -1,7 +1,11 @@
 {
   "name": "tptp-lsp",
   "displayName": "TPTP Language Support",
+  "description": "Diagnostics, outline and include navigation for TPTP problems and axiom files",
   "version": "0.0.1",
+  "publisher": "tptp",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/olo667/TPTpls" },
   "engines": { "vscode": "^1.75.0" },
   "main": "./extension.js",
   "activationEvents": ["onLanguage:tptp"],
@@ -12,7 +16,22 @@
         "aliases": ["TPTP"],
         "extensions": [".p", ".ax", ".tptp"]
       }
-    ]
+    ],
+    "configuration": {
+      "title": "TPTP",
+      "properties": {
+        "tptp.tptpRoot": {
+          "type": "string",
+          "default": "",
+          "description": "TPTP library root, searched last for includes (default: the TPTP environment variable)"
+        },
+        "tptp.debounceMs": {
+          "type": "number",
+          "default": 200,
+          "description": "Delay after the last edit before re-checking, in milliseconds"
+        }
+      }
+    }
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.0"

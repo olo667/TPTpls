@@ -14,6 +14,14 @@ sbt server/assembly  # builds server/target/scala-3.3.8/tptp-lsp.jar
 java -jar server/target/scala-3.3.8/tptp-lsp.jar   # speaks LSP on stdin/stdout
 ```
 
+## Releases
+
+Pushing a tag `vX.Y.Z` (matching the version in `build.sbt` and `vscode/package.json`) runs the CI release:
+the GitHub release gets `tptp-lsp.jar` (for Neovim and other editors) and `tptp-lsp.vsix` (VS Code, with the
+jar bundled; needs Java 21 on the `PATH`). With the repository secrets `VSCE_PAT` / `OVSX_PAT` set, the
+extension is also published to the VS Code Marketplace / Open VSX. The latest jar is always at
+`https://github.com/olo667/TPTpls/releases/latest/download/tptp-lsp.jar`.
+
 ## Settings
 
 Passed as `initializationOptions` or via `workspace/configuration` (section `tptp`):
