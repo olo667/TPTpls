@@ -22,6 +22,14 @@ object Convert {
     case DiagnosticCode.IncludeCycle         => "include-cycle"
     case DiagnosticCode.SelectedNameNotFound => "selected-name-not-found"
     case DiagnosticCode.ErrorsInInclude      => "errors-in-include"
+    case DiagnosticCode.FreeVariable         => "free-variable"
+    case DiagnosticCode.UnusedVariable       => "unused-variable"
+    case DiagnosticCode.InvalidRole          => "invalid-role"
+    case DiagnosticCode.UnknownDefinedWord   => "unknown-defined-word"
+    case DiagnosticCode.ArityMismatch          => "arity-mismatch"
+    case DiagnosticCode.PredicateFunctionClash => "predicate-function-clash"
+    case DiagnosticCode.ConflictsInInclude     => "conflicts-in-include"
+    case DiagnosticCode.DuplicateName          => "duplicate-name"
   }
 
   def severity(s: Severity): l.DiagnosticSeverity = s match {

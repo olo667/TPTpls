@@ -1,6 +1,7 @@
 package tptp.analysis
 
 import java.nio.file.Path
+import tptp.check.{FileSummary, FofChecker, SummaryItem}
 import tptp.semantics.*
 import tptp.syntax.{LineIndex, Span, SyntaxParser}
 import tptp.syntax.tree.*
@@ -22,6 +23,7 @@ final case class FileAnalysis(
     formulaNames: Map[String, Vector[Name]],
     outline: Vector[OutlineItem],
     diagnostics: Vector[Diagnostic],
+    summary: FileSummary,
 ) {
   def lines: LineIndex = tree.lines
   def hasErrors: Boolean = diagnostics.exists(_.severity == Severity.Error)
@@ -56,7 +58,24 @@ object FileAnalyzer {
       case r: OtherRecord => r.name.valid
       case _              => None
     }.groupBy(_.key)
-    FileAnalysis(path, stamp, tree, includes, formulaNames, outline(tree.records), syntaxDiagnostics ++ includeDiagnostics)
+    val (summary, checkDiagnostics) = check(tree.records)
+    FileAnalysis(path, stamp, tree, includes, formulaNames, outline(tree.records),
+      syntaxDiagnostics ++ includeDiagnostics ++ checkDiagnostics, summary)
+  }
+
+  /** Each record goes to its language's checker; the summary keeps records and includes in source order. */
+  private def check(records: Vector[Record]): (FileSummary, Vector[Diagnostic]) = {
+    val items = Vector.newBuilder[SummaryItem]
+    val diagnostics = Vector.newBuilder[Diagnostic]
+    records.foreach {
+      case r: FofRecord =>
+        val c = FofChecker.check(r)
+        items += c.item
+        diagnostics ++= c.diagnostics
+      case i: Include                      => items += SummaryItem.IncludeAt(i)
+      case _: OtherRecord | _: ErrorRecord => () // later: a checker per language
+    }
+    (FileSummary(items.result()), diagnostics.result())
   }
 
   private def outline(records: Vector[Record]): Vector[OutlineItem] =

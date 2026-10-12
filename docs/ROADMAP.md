@@ -4,7 +4,7 @@ Planned features of TPTpls, in no particular order. Current problems are listed 
 [Known issues](../README.md#known-issues).
 
 - [ ] **Type checking**: type errors reported as diagnostics, across a file and its includes.
-  - [ ] FOF: inconsistent use of a symbol (different arities, used both as predicate and as function),
+  - [x] FOF: inconsistent use of a symbol (different arities, used both as predicate and as function),
         free variables.
   - [ ] CNF: inconsistent use of a symbol, as in FOF.
   - [ ] TFF: uses of symbols checked against their declared types.

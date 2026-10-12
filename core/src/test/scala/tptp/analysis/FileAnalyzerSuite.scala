@@ -39,4 +39,14 @@ class FileAnalyzerSuite extends munit.FunSuite {
     assertEquals(a.formulaNames.view.mapValues(_.size).toMap, Map("a" -> 2, "b" -> 1))
   }
 
+  test("record checks become diagnostics, and the summary keeps records and includes in order") {
+    val text = "fof(a, axiom, p(X)).\ninclude('b.ax').\nthf(t, type, c: $i).\nfof(b, axoim, q).\n"
+    val a = FileAnalyzer.analyze(Path.of("/x/main.p"), Stamp.Version(1), text, noEnv)
+    val codes = a.diagnostics.map(_.code).toSet
+    assert(codes(DiagnosticCode.FreeVariable) && codes(DiagnosticCode.InvalidRole), codes)
+    assertEquals(a.summary.items.map {
+      case tptp.check.SummaryItem.Formula(name, _) => name.map(_.text).getOrElse("?")
+      case tptp.check.SummaryItem.IncludeAt(i)     => "include"
+    }, Vector("a", "include", "b"))
+  }
 }

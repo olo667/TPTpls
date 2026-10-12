@@ -21,6 +21,8 @@ lazy val core = project
     Antlr4 / antlr4GenVisitor := false,
     libraryDependencies ++= Seq("org.antlr" % "antlr4-runtime" % antlrVersion, munit, munitScalacheck),
     // Forked tests run with core/ as working directory, so golden files resolve as src/test/resources/...
+    // the hand-written language lists live next to the grammar and the BNF they come from
+    Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "antlr4",
     Test / fork := true,
     // the server parses on a 256 MB stack (TptpLanguageServer.StackBytes); tests use the same
     Test / javaOptions += "-Xss256m",

@@ -13,6 +13,14 @@ enum DiagnosticCode {
   case IncludeCycle
   case SelectedNameNotFound
   case ErrorsInInclude
+  case FreeVariable
+  case UnusedVariable
+  case InvalidRole
+  case UnknownDefinedWord
+  case ArityMismatch
+  case PredicateFunctionClash
+  case ConflictsInInclude
+  case DuplicateName
 }
 
 /** A span in a specific file, with that file's line index for position conversion. */

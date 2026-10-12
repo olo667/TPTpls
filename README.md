@@ -1,7 +1,7 @@
 # TPTpls — a language server for TPTP
 
 An LSP server for the [TPTP](https://tptp.org) language, written in Scala 3.
-Status: v0.01 — syntax diagnostics, document outline, include resolution and include navigation. No type checking yet.
+Status: v0.01 — syntax diagnostics, document outline, include resolution and include navigation. FOF type checking (symbol arities and kinds, variables, roles, defined words, duplicate names).
 See the [roadmap](docs/ROADMAP.md) for planned features.
 
 ## Build and run
@@ -93,8 +93,8 @@ This is an alpha. Known problems, to be addressed in later versions:
 
 ## Grammar
 
-`core/src/main/antlr4/TPTP.g4` is generated from the TPTP BNF (SyntaxBNF-v9.3.1.4) by the BNF-to-ANTLR
-meta-grammar converter (`TPTP_20261008.g4` in jzxia/TPTP_SyntaxBNF) and used unedited. Problems are
+`core/src/main/antlr4/TPTP.g4` is generated from the TPTP BNF (SyntaxBNF-v9.3.1.6, vendored next to it) by the BNF-to-ANTLR
+meta-grammar converter (`TPTP.g4` at commit `ddddcc5` in jzxia/TPTP_SyntaxBNF) and used unedited. Problems are
 fixed in the converter, not locally.
 
 Files of the TPTP library that still fail to parse are listed in
