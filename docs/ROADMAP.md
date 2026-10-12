@@ -24,6 +24,8 @@ Planned features of TPTpls, in no particular order. Current problems are listed 
   - [ ] THF
 - [ ] **Support for large axiom files**: including axiom files of hundreds of MB, as found in the TPTP
       library, without running out of memory.
+- [ ] **Axiom files in a problem's context** ("reverse include"): an axiom file opened on its own is checked as
+      part of a problem that includes it, so symbols and types declared by the problem count.
 - [ ] **Typo detection**: a warning when a symbol is probably a misspelling of another one
       (e.g. `memebr` next to `member`), naming the likely intended symbol.
 - [ ] **Quick fixes for diagnostics**: one-click corrections offered with a diagnostic, such as replacing
