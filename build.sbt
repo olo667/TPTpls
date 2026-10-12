@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "3.3.8"
 ThisBuild / organization := "org.tptp"
-ThisBuild / version := "0.0.1"
+ThisBuild / version := "0.1.0"
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature")
 
 val antlrVersion = "4.13.2"

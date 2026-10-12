@@ -2,7 +2,7 @@
   "name": "tptp-lsp",
   "displayName": "TPTP Language Support",
   "description": "Diagnostics, outline and include navigation for TPTP problems and axiom files",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "tptp",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/olo667/TPTpls" },
