@@ -116,4 +116,97 @@ class ProblemCheckerSuite extends munit.FunSuite {
       (DiagnosticCode.ConflictsInInclude, Span(49, 55)),
     ))
   }
+
+  /** Texts set in memory over the files on disk (includes are resolved on disk), each change a new version stamp. */
+  private final class MemorySources extends SourceProvider {
+    private val texts = scala.collection.mutable.Map.empty[Path, (String, Stamp)]
+    private var version = 0
+    def set(path: Path, text: String): Path = { version += 1; texts(path) = (text, Stamp.Version(version)); path }
+    def stamp(path: Path): Option[Stamp] = texts.get(path).map(_._2).orElse(DiskSources.stamp(path))
+    def read(path: Path): Option[(String, Stamp)] = texts.get(path).orElse(DiskSources.read(path))
+  }
+  private def typeChecks(ds: Vector[Diagnostic]) = ds.filter(d => Set(DiagnosticCode.TypeMismatch, DiagnosticCode.ArityMismatch,
+    DiagnosticCode.PredicateFunctionClash, DiagnosticCode.ConflictingDeclaration, DiagnosticCode.TypeErrorsInInclude,
+    DiagnosticCode.UndeclaredType, DiagnosticCode.UndeclaredSymbol)(d.code))
+
+  private val natAx = "tff(nat_type, type, nat: $tType).\ntff(zero_type, type, zero: nat).\ntff(even_type, type, even: nat > $o).\n"
+
+  tmp.test("a declaration in an include types the root's uses, with a link to it") { dir =>
+    write(dir, "nat.ax", natAx)
+    val main = write(dir, "main.p", "include('nat.ax').\ntff(a, axiom, even(1)).\n")
+    val ds = typeChecks(analyse(main))
+    assertEquals(ds.map(d => (d.code, d.message)), Vector((DiagnosticCode.TypeMismatch,
+      "argument 1 of `even` has type `$int`, but `even` expects `nat`")))
+    assertEquals(ds.head.related.map(_.location.path), Vector(dir.resolve("nat.ax")))
+  }
+
+  tmp.test("a type error inside an include is reported on the include line") { dir =>
+    write(dir, "nat.ax", natAx + "tff(bad, axiom, even(1)).\n")
+    val main = write(dir, "main.p", "include('nat.ax').\n")
+    val ds = typeChecks(analyse(main))
+    assertEquals(ds.map(d => (d.code, d.span, d.message)), Vector((DiagnosticCode.TypeErrorsInInclude, Span(8, 16),
+      "type errors in the included files: `even` (argument 1: `$int` vs `nat`)")))
+    assertEquals(ds.head.related.map(_.location.path), Vector(dir.resolve("nat.ax")))
+  }
+
+  tmp.test("problem order: an include sees the declarations before it; a root record does not see later ones") { dir =>
+    write(dir, "types.ax", natAx)
+    write(dir, "uses.ax", "tff(u, axiom, even(zero)).\n")
+    val ok = write(dir, "ok.p", "include('types.ax').\ninclude('uses.ax').\n")
+    assertEquals(typeChecks(analyse(ok)), Vector.empty)
+    val early = write(dir, "early.p", "tff(a, axiom, odd(zero)).\ninclude('types.ax').\ntff(odd_type, type, odd: nat > $o).\n")
+    assertEquals(typeChecks(analyse(early)).map(d => (d.code, d.message)).headOption,
+      Some((DiagnosticCode.UndeclaredSymbol, "`odd` is used before its declaration")))
+  }
+
+  tmp.test("equal redeclarations and arity overloads are fine; a different type for the same count conflicts") { dir =>
+    write(dir, "nat.ax", natAx)
+    val ok = write(dir, "ok.p", "include('nat.ax').\ntff(e2, type, even: nat > $o).\n" +
+      "tff(c1, type, color: nat > $o).\ntff(c2, type, color: (nat * nat) > $o).\ntff(a, axiom, color(zero) & color(zero, zero)).\n")
+    assertEquals(typeChecks(analyse(ok)), Vector.empty)
+    val bad = write(dir, "bad.p", "include('nat.ax').\ntff(e2, type, even: $int > $o).\ntff(n2, type, nat: $tType > $tType).\n" +
+      "tff(z2, type, zero: $tType).\n")
+    assertEquals(typeChecks(analyse(bad)).map(d => (d.code, d.message)), Vector(
+      (DiagnosticCode.ConflictingDeclaration, "`even` with 1 argument is already declared as `nat > $o`"),
+      (DiagnosticCode.ConflictingDeclaration, "`nat` is already declared as `$tType`"),
+      (DiagnosticCode.ConflictingDeclaration, "`zero` is already declared as a symbol"),
+    ))
+  }
+
+  tmp.test("a redeclaration being typed does not conflict with the declaration it repeats") { dir =>
+    write(dir, "f.ax", natAx + "tff(f_type, type, f: (nat * nat) > nat).\n")
+    val viaInclude = write(dir, "a.p", "include('f.ax').\ntff(f2, type, f: (nat * ) > nat).\n")
+    assertEquals(typeChecks(analyse(viaInclude)), Vector.empty)
+    val inRoot = write(dir, "b.p", natAx + "tff(f1, type, f: (nat * nat) > nat).\ntff(f2, type, f: (nat * ) > nat).\n")
+    assertEquals(typeChecks(analyse(inRoot)), Vector.empty)
+  }
+
+  tmp.test("only includes depending on an edited declaration are rechecked") { dir =>
+    val sources = MemorySources()
+    write(dir, "types.ax", natAx)
+    write(dir, "uses.ax", "tff(u, axiom, even(zero)).\n")
+    val main = write(dir, "main.p", "")
+    def text(declaration: String, formula: String) =
+      s"tff(one_type, type, one: $declaration).\ninclude('types.ax').\ninclude('uses.ax').\ntff(a, axiom, $formula).\n"
+    val project = ProjectAnalyzer(sources, ResolutionEnv(Vector.empty, None))
+    sources.set(main, text("nat", "even(one)"))
+    project.analyzeRoot(main)
+    val first = project.includeChecksComputed
+    sources.set(main, text("nat", "even(zero) | even(one)"))
+    project.analyzeRoot(main)
+    assertEquals(project.includeChecksComputed, first, "an edit of a formula reuses every include check")
+    sources.set(main, text("$int", "even(one)"))
+    project.analyzeRoot(main)
+    assertEquals(project.includeChecksComputed, first, "`one` is used by no include")
+    sources.set(main, "tff(even_type, type, even: $int > $o).\n" + text("nat", "even(one)"))
+    project.analyzeRoot(main)
+    assert(project.includeChecksComputed > first, "`even` before the includes is looked up by `uses.ax`")
+  }
+
+  tmp.test("an axiom file opened on its own warns about what it does not declare") { dir =>
+    val ax = write(dir, "events.ax", "tff(h, type, holdsAt: (fluent * $int) > $o).\ntff(a, axiom, ! [F: fluent] : (holdsAt(F, 1) | p(F))).\n")
+    val ds = typeChecks(analyse(ax))
+    assertEquals(ds.map(d => (d.code, d.severity)).distinct, Vector(
+      (DiagnosticCode.UndeclaredType, Severity.Warning), (DiagnosticCode.UndeclaredSymbol, Severity.Warning)))
+  }
 }

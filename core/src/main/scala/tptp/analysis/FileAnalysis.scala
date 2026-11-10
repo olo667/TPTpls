@@ -1,7 +1,7 @@
 package tptp.analysis
 
 import java.nio.file.Path
-import tptp.check.{FileSummary, FofChecker, SummaryItem}
+import tptp.check.{FileSummary, FofChecker, SummaryItem, TffChecker}
 import tptp.semantics.*
 import tptp.syntax.{LineIndex, Span, SyntaxParser}
 import tptp.syntax.tree.*
@@ -55,6 +55,7 @@ object FileAnalyzer {
     )
     val formulaNames = tree.records.flatMap {
       case r: FofRecord   => r.name.valid
+      case r: TffRecord   => r.name.valid
       case r: OtherRecord => r.name.valid
       case _              => None
     }.groupBy(_.key)
@@ -72,6 +73,10 @@ object FileAnalyzer {
         val c = FofChecker.check(r)
         items += c.item
         diagnostics ++= c.diagnostics
+      case r: TffRecord =>
+        val c = TffChecker.local(r)
+        items += c.item
+        diagnostics ++= c.diagnostics
       case i: Include                      => items += SummaryItem.IncludeAt(i)
       case _: OtherRecord | _: ErrorRecord => () // later: a checker per language
     }
@@ -81,6 +86,7 @@ object FileAnalyzer {
   private def outline(records: Vector[Record]): Vector[OutlineItem] =
     records.map {
       case r: FofRecord   => formula(r, "fof", r.name, r.role)
+      case r: TffRecord   => formula(r, "tff", r.name, r.role)
       case r: OtherRecord => formula(r, r.language.toString.toLowerCase, r.name, r.role)
       case r: Include =>
         OutlineItem(r.fileName.valid.map(_.key).getOrElse("<error>"), "include", OutlineKind.Include, r.span,

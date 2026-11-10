@@ -4,7 +4,7 @@ import tptp.syntax.SyntaxParser
 import tptp.syntax.tree.FofRecord
 
 class FofCheckerSuite extends munit.FunSuite {
-  private def check(text: String): RecordCheck = SyntaxParser.parse(text).records.head match {
+  private def check(text: String): RecordCheck[SummaryItem.Formula] = SyntaxParser.parse(text).records.head match {
     case r: FofRecord => FofChecker.check(r)
     case other        => fail(s"not a FOF record: $other")
   }

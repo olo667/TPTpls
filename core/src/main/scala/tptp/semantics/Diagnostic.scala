@@ -21,6 +21,14 @@ enum DiagnosticCode {
   case PredicateFunctionClash
   case ConflictsInInclude
   case DuplicateName
+  case TypeMismatch
+  case UndeclaredType
+  case UndeclaredSymbol
+  case WrongTypeArguments
+  case MalformedType
+  case InvalidLetDefinition
+  case ConflictingDeclaration
+  case TypeErrorsInInclude
 }
 
 /** A span in a specific file, with that file's line index for position conversion. */

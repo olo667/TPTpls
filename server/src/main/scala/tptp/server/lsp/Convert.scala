@@ -30,6 +30,14 @@ object Convert {
     case DiagnosticCode.PredicateFunctionClash => "predicate-function-clash"
     case DiagnosticCode.ConflictsInInclude     => "conflicts-in-include"
     case DiagnosticCode.DuplicateName          => "duplicate-name"
+    case DiagnosticCode.TypeMismatch           => "type-mismatch"
+    case DiagnosticCode.UndeclaredType         => "undeclared-type"
+    case DiagnosticCode.UndeclaredSymbol       => "undeclared-symbol"
+    case DiagnosticCode.WrongTypeArguments     => "wrong-type-arguments"
+    case DiagnosticCode.MalformedType          => "malformed-type"
+    case DiagnosticCode.InvalidLetDefinition   => "invalid-let-definition"
+    case DiagnosticCode.ConflictingDeclaration => "conflicting-declaration"
+    case DiagnosticCode.TypeErrorsInInclude    => "type-errors-in-include"
   }
 
   def severity(s: Severity): l.DiagnosticSeverity = s match {

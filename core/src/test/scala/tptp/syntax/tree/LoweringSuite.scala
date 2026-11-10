@@ -56,7 +56,7 @@ class LoweringSuite extends munit.FunSuite {
   test("quantifiers, negation, equality, inequality and defined terms") {
     formula("! [X, Y] : ~ (X = Y | f(X) != \"o\" | $less(X, 1/2))") match {
       case QuantifiedFormula(Op(Quantifier.ForAll, _), vars, UnaryFormula(_, body, _, _), _, _) =>
-        assertEquals(vars.flatMap(_.valid).map(_.text), Vector("X", "Y"))
+        assertEquals(vars.flatMap(_.name.valid).map(_.text), Vector("X", "Y"))
         body match {
           case BinaryFormula(_, BinaryFormula(_, Equality(_, _, _, _), Inequality(_, DistinctObject("\"o\"", _), _, _), _, _),
                              a: AtomicFormula, _, _) =>

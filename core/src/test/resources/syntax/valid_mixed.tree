@@ -8,10 +8,27 @@ OtherRecord Thf 74..94
   Name "t" 78..79
   Role 81..85
     Name "type" 81..85
-OtherRecord Tff 95..145
+TffRecord 95..145
   Name "f" 99..100
   Role 102..107
     Name "axiom" 102..107
+  Logical 109..143
+    QuantifiedFormula 109..143
+      Op ForAll 109..110
+      VarBinding 112..119
+        Name "X" 112..113
+        TypeApp 115..119
+          Name "$int" 115..119
+      AtomicFormula Defined 123..143
+        Name "$less" 123..128
+        Variable 129..130
+          Name "X" 129..130
+        AtomicTerm Defined 132..142
+          Name "$sum" 132..136
+          Variable 137..138
+            Name "X" 137..138
+          Variable 140..141
+            Name "X" 140..141
 OtherRecord Cnf 146..176
   Name "c1" 150..152
   Role 154..159

@@ -5,7 +5,8 @@ FofRecord 28..68
   Logical 44..66
     QuantifiedFormula 44..66
       Op ForAll 44..45
-      Name "X" 47..48
+      VarBinding 47..48
+        Name "X" 47..48
       BinaryFormula 53..65 outer 52..66
         Op Impl 58..60
         AtomicFormula Plain 53..57

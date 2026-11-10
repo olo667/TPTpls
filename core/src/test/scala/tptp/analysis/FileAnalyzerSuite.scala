@@ -47,6 +47,7 @@ class FileAnalyzerSuite extends munit.FunSuite {
     assertEquals(a.summary.items.map {
       case tptp.check.SummaryItem.Formula(name, _) => name.map(_.text).getOrElse("?")
       case tptp.check.SummaryItem.IncludeAt(i)     => "include"
+      case d: tptp.check.SummaryItem.Declaration   => d.symbol.text
     }, Vector("a", "include", "b"))
   }
 }

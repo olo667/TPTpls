@@ -1,7 +1,7 @@
 # TPTpls — a language server for TPTP
 
 An LSP server for the [TPTP](https://tptp.org) language, written in Scala 3.
-Status: v0.1 — syntax diagnostics, document outline, include resolution and include navigation. FOF type checking (symbol arities and kinds, variables, roles, defined words, duplicate names).
+Status: v0.1 — syntax diagnostics, document outline, include resolution and include navigation. FOF type checking (symbol arities and kinds, variables, roles, defined words, duplicate names). TFF type checking (TF0, TF1 and TXF with arithmetic: declared types, overloading by arity, polymorphism, `$let`/`$ite`).
 See the [roadmap](docs/ROADMAP.md) for planned features.
 
 ## Build and run
@@ -94,10 +94,20 @@ This is an alpha. Known problems, to be addressed in later versions:
 - Comments are skipped by the grammar (no hover or folding).
 - **Very large records are slow to re-check.** A single record of several hundred KB (e.g. the LCL
   modal-logic encodings, up to 250 KB per formula) takes seconds to parse, and longer when broken.
-- **Testing covered FOF only.** The parser handles every TPTP language (THF, TFF, TCF, FOF, CNF, TPI)
-  with the same error repair, outline and include handling, and should work on all of them, but the
-  mutation tests and the library test were run on FOF files (TPTP names containing `+`) only; the
-  other languages are covered by a few hand-written test inputs.
+- **Nested TFF formulas parse slowly.** For a parenthesised formula, ANTLR scans ahead to the closing `)`
+  before it can choose a grammar alternative, once for every enclosing level, so parsing time grows
+  quadratically with nesting depth. `ANA143_1.004.064.p` (40 KB) takes about 20 s to open and `ITP020_5.p`
+  with 14 MB of includes about 4 minutes; edits inside such records are slow too. FOF is affected only by
+  formulas nested in their first operand. A left-factored grammar parses `ITP020_5.p`'s includes in about
+  1 s instead of 130 s; it is to come from the grammar converter.
+- **NX0 (non-classical TFF) is not type-checked.** Records with modal connectives or atoms, and `logic`
+  specifications, are parsed and outlined but get no type or `$`-word checks.
+- **Undeclared symbols used as terms may be `$i` or `$o`.** TPTP gives them the default type `$i`, but TXF
+  problems pass undeclared predicates as Boolean arguments (`SWX228_1.p`), so a `$o` argument is accepted too.
+- **Testing covered FOF and TFF.** The parser handles every TPTP language (THF, TFF, TCF, FOF, CNF, TPI)
+  with the same error repair, outline and include handling; the syntax mutation tests ran on FOF files,
+  the type checks on the FOF and TFF library problems; the other languages are covered by a few
+  hand-written test inputs.
 
 ## Grammar
 

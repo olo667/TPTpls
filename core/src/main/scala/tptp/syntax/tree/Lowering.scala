@@ -20,7 +20,9 @@ object Lowering {
         FofRecord(AntlrTokens.span(c.getStart), nameNode(c.name, c, Element.Name), role(c.formula_role, c),
           statement(c.fof_formula, c), annotations(c.annotations), errors, sp)
       case Some(c: Thf_annotatedContext) => other(c, Language.Thf, c.name, c.formula_role, errors, sp)
-      case Some(c: Tff_annotatedContext) => other(c, Language.Tff, c.name, c.formula_role, errors, sp)
+      case Some(c: Tff_annotatedContext) =>
+        TffRecord(AntlrTokens.span(c.getStart), nameNode(c.name, c, Element.Name), role(c.formula_role, c),
+          tffStatement(c.tff_formula, c), annotations(c.annotations), errors, sp)
       case Some(c: Tcf_annotatedContext) => other(c, Language.Tcf, c.name, c.formula_role, errors, sp)
       case Some(c: Cnf_annotatedContext) => other(c, Language.Cnf, c.name, c.formula_role, errors, sp)
       case Some(c: Tpi_annotatedContext) => other(c, Language.Tpi, c.name, c.formula_role, errors, sp)
@@ -133,6 +135,33 @@ object Lowering {
             QuantifiedFormula(Op(q, span(c.fof_quantifier)), variables(c.fof_variable_list, c), sub(c.fof_unit_formula, c), sp, sp)
           case c @ (_: Fof_plain_termContext | _: Fof_defined_plain_termContext | _: Fof_system_termContext) =>
             atom(c).fold(incomplete(c, Element.Formula)) { case (f, args) => AtomicFormula(f, args, sp, sp) }
+          case c: Tff_unitary_formulaContext if c.tff_logic_formula != null => sub(c.tff_logic_formula, c).withOuter(sp)
+          case c: Tff_binary_pairContext =>
+            val connective = Option(c.nonassoc_connective).flatMap(n => BinaryConnective.fromText(n.getText).map(Op(_, span(n))))
+            connective.fold(incomplete(c, Element.Formula))(op =>
+              BinaryFormula(op, sub(c.tff_unit_formula(0), c), sub(c.tff_unit_formula(1), c), sp, sp))
+          case c: Tff_or_formulaContext  => list(c, Option(c.tff_or_formula), c.tff_unit_formula.asScala.toVector, BinaryConnective.Or)
+          case c: Tff_and_formulaContext => list(c, Option(c.tff_and_formula), c.tff_unit_formula.asScala.toVector, BinaryConnective.And)
+          case c: Tff_prefix_unaryContext if c.tff_unary_connective == null => incomplete(c, Element.Formula)
+          case c: Tff_prefix_unaryContext =>
+            if (c.tff_unary_connective.unary_connective == null) unsupported(c) // an NX0 connective
+            else UnaryFormula(Op(UnaryConnective.Not, span(c.tff_unary_connective)), sub(c.tff_preunit_formula, c), sp, sp)
+          case c: Tff_infix_unaryContext   => Inequality(tffTerm(c.tff_unitary_term(0), c), tffTerm(c.tff_unitary_term(1), c), sp, sp)
+          case c: Tff_defined_infixContext => Equality(tffTerm(c.tff_unitary_term(0), c), tffTerm(c.tff_unitary_term(1), c), sp, sp)
+          case c: Tff_quantified_formulaContext if c.tff_quantifier == null => incomplete(c, Element.Formula)
+          case c: Tff_quantified_formulaContext =>
+            if (c.tff_quantifier.fof_quantifier == null) unsupported(c) // `#`
+            else {
+              val q = if (c.tff_quantifier.getText == "!") Quantifier.ForAll else Quantifier.Exists
+              QuantifiedFormula(Op(q, span(c.tff_quantifier)), bindings(c.tff_variable_list, c), sub(c.tff_unit_formula, c), sp, sp)
+            }
+          case c: Tff_defined_plainContext if c.txf_let != null  => let(c.txf_let)
+          case c: Tff_defined_plainContext if c.nxf_atom != null => unsupported(c)
+          case c @ (_: Tff_plain_atomicContext | _: Tff_defined_plainContext | _: Tff_system_atomicContext) =>
+            tffAtom(c).fold(incomplete(c, Element.Formula)) { case (f, args) => AtomicFormula(f, args, sp, sp) }
+          case c: Txf_unitary_formulaContext =>
+            word(c.variable).fold[Formula](incomplete(c, Element.Formula))(n => VariableFormula(n, sp, sp))
+          case c @ (_: Txf_definitionContext | _: Txf_sequentContext) => unsupported(c) // nested; at the top: tffStatement
           // chain rules, and the parts of rules above whose only rule child is the formula
           case c => firstRule(c).fold(incomplete(c, Element.Formula))(formula)
         }
@@ -140,7 +169,7 @@ object Lowering {
     }
 
   /** `a | b | c`: the grammar nests to the left (`or_formula | unit`), and so does the tree. */
-  private def list(c: ParserRuleContext, left: Option[ParserRuleContext], units: Vector[Fof_unit_formulaContext],
+  private def list(c: ParserRuleContext, left: Option[ParserRuleContext], units: Vector[ParserRuleContext],
                    connective: BinaryConnective): Formula = {
     val op = c.children.asScala.collectFirst { case t: TerminalNode => Op(connective, AntlrTokens.span(t.getSymbol)) }
     val (l, r) = left match {
@@ -150,14 +179,16 @@ object Lowering {
     op.fold(incomplete(c, Element.Formula))(BinaryFormula(_, l, sub(r.orNull, c), span(c), span(c)))
   }
 
-  private def variables(c: Fof_variable_listContext, parent: ParserRuleContext): Vector[NameNode] =
-    if (c == null) Vector(missing(parent, Element.Variable))
+  private def variables(c: Fof_variable_listContext, parent: ParserRuleContext): Vector[VarBinding] =
+    if (c == null) Vector(untyped(missing(parent, Element.Variable)))
     else {
-      val out = Vector.newBuilder[NameNode]
+      val out = Vector.newBuilder[VarBinding]
       var l = c
-      while (l != null) { out += nameNode(l.variable, l, Element.Variable); l = l.fof_variable_list }
+      while (l != null) { out += untyped(nameNode(l.variable, l, Element.Variable)); l = l.fof_variable_list }
       out.result()
     }
+
+  private def untyped(n: NameNode): VarBinding = VarBinding(n, None, n.span)
 
   // ---- terms ----
 
@@ -194,6 +225,185 @@ object Lowering {
     var a = c
     while (a != null) { out += term(a.fof_term, a); a = a.fof_arguments }
     out.result()
+  }
+
+  // ---- TFF ----
+
+  private def tffStatement(c: Tff_formulaContext, parent: ParserRuleContext): Statement =
+    if (c == null) {
+      val gap = missing(parent, Element.Formula)
+      Logical(gap, gap.span)
+    } else if (gap(c).isEmpty && c.exception == null && c.tff_atom_typing != null) typing(c.tff_atom_typing)
+    else if (gap(c).isEmpty && c.exception == null && c.tff_subtype != null) {
+      val st = c.tff_subtype
+      Subtype(tffType(st.atomic_type(0), st), tffType(st.atomic_type(1), st), span(st))
+    } else
+      txfTop(c) match {
+        case Some(d: Txf_definitionContext) => Definition(tffTerm(d.tff_atomic_formula, d), tffTerm(d.tff_term, d), span(d))
+        case Some(s: Txf_sequentContext) => Sequent(tupleFormulas(s.txf_tuple(0), s), tupleFormulas(s.txf_tuple(1), s), span(s))
+        case _ =>
+          val f = formula(c)
+          Logical(f, f.outer)
+      }
+
+  /** The definition or sequent a TFF formula consists of, found through single-child chain rules. */
+  private def txfTop(c: ParserRuleContext): Option[ParserRuleContext] = c match {
+    case d: Txf_definitionContext => Some(d)
+    case s: Txf_sequentContext    => Some(s)
+    case other if gap(other).isEmpty && other.exception == null && chain(other) => firstRule(other).flatMap(txfTop)
+    case _                        => None
+  }
+
+  private def tupleFormulas(t: Txf_tupleContext, parent: ParserRuleContext): Vector[Formula] =
+    if (t == null) Vector(missing(parent, Element.Formula))
+    else Option(t.tff_arguments).toVector.flatMap(a => a.tff_term +: a.comma_tff_term.asScala.toVector.map(_.tff_term)).map(sub(_, t))
+
+  private def let(c: Txf_letContext): Let = {
+    val sp = span(c)
+    val typings = Option(c.txf_let_types).toVector.flatMap { t =>
+      if (t.tff_atom_typing != null) Vector(t.tff_atom_typing)
+      else {
+        val out = Vector.newBuilder[Tff_atom_typingContext]
+        var l = t.tff_atom_typing_list
+        while (l != null) { out += l.tff_atom_typing; l = l.tff_atom_typing_list }
+        out.result()
+      }
+    }.filter(_ != null).map(typing).collect { case d: TypeDeclaration => d }
+    val definitions = Option(c.txf_let_defns).toVector.flatMap { d =>
+      if (d.txf_let_defn != null) Vector(d.txf_let_defn)
+      else {
+        val out = Vector.newBuilder[Txf_let_defnContext]
+        var l = d.txf_let_defn_list
+        while (l != null) { out += l.txf_let_defn; l = l.txf_let_defn_list }
+        out.result()
+      }
+    }.filter(_ != null).map { d =>
+      val lhs = Option(d.txf_let_lhs).map(l => tffTerm(Option[ParserRuleContext](l.txf_tuple).getOrElse(l.tff_plain_atomic), l))
+        .getOrElse(missing(d, Element.Term))
+      LetDefinition(lhs, tffTerm(d.tff_term, d), span(d))
+    }
+    Let(typings, definitions, tffTerm(c.tff_term, c), sp, sp)
+  }
+
+  private def typing(c: Tff_atom_typingContext): Statement =
+    if (c.tff_atom_typing != null) typing(c.tff_atom_typing)
+    else if (c.typeable_atom != null && c.typeable_atom.Distinct_object != null) { val u = unsupported(c); Logical(u, u.span) }
+    else TypeDeclaration(nameNode(Option(c.typeable_atom).map(_.constant).orNull, c, Element.Name),
+      tffType(c.tff_top_level_type, c), span(c))
+
+  private def bindings(c: Tff_variable_listContext, parent: ParserRuleContext): Vector[VarBinding] =
+    if (c == null) Vector(untyped(missing(parent, Element.Variable)))
+    else {
+      val out = Vector.newBuilder[VarBinding]
+      var l = c
+      while (l != null) { out += binding(l.tff_variable, l); l = l.tff_variable_list }
+      out.result()
+    }
+
+  private def binding(c: Tff_variableContext, parent: ParserRuleContext): VarBinding =
+    if (c == null) untyped(missing(parent, Element.Variable))
+    else gap(c).map(g => untyped(errorNode(g))).getOrElse {
+      val t = c.tff_typed_variable
+      if (t == null) untyped(nameNode(c.variable, c, Element.Variable))
+      else VarBinding(nameNode(t.variable, t, Element.Variable), Some(tffType(t.tff_atomic_type, t)), span(t))
+    }
+
+  /** A term position: an atom is a term, a variable a variable, a tuple a tuple; any other formula is a TXF formula
+    * as a term. */
+  private def tffTerm(c: ParserRuleContext, parent: ParserRuleContext): Term =
+    if (c == null) missing(parent, Element.Term)
+    else
+      gap(c).map(errorNode).getOrElse {
+        if (c.exception != null) incomplete(c, Element.Term)
+        else
+          c match {
+            case v: VariableContext => word(v).fold(incomplete(v, Element.Term))(n => Variable(n, n.span))
+            case d: Defined_termContext =>
+              if (d.Distinct_object != null) DistinctObject(d.Distinct_object.getText, span(d))
+              else NumberTerm(d.getText, span(d))
+            case d: Tff_defined_plainContext if d.txf_let != null  => let(d.txf_let)
+            case d: Tff_defined_plainContext if d.nxf_atom != null => unsupported(d)
+            case t: Txf_tupleContext => Tuple(tffArguments(t.tff_arguments), span(t))
+            case a @ (_: Tff_plain_atomicContext | _: Tff_defined_plainContext | _: Tff_system_atomicContext) =>
+              tffAtom(a).fold(incomplete(a, Element.Term)) { case (f, args) => AtomicTerm(f, args, span(a)) }
+            case other if chain(other) => firstRule(other).fold(incomplete(other, Element.Term))(tffTerm(_, other))
+            case other                 => FormulaTerm(formula(other), span(other)) // a TXF formula as a term
+          }
+      }
+
+  /** A rule with a single rule child: a chain step on the way to an atom, variable or defined term. */
+  private def chain(c: ParserRuleContext): Boolean = c.getChildCount == 1 && c.getChild(0).isInstanceOf[ParserRuleContext]
+
+  private def tffAtom(c: ParserRuleContext): Option[(Name, Vector[Term])] = {
+    val (functor, args) = c match {
+      case p: Tff_plain_atomicContext  => (Option[ParserRuleContext](p.constant).getOrElse(p.functor), p.tff_arguments)
+      case d: Tff_defined_plainContext => (Option[ParserRuleContext](d.defined_constant).getOrElse(d.defined_functor), d.tff_arguments)
+      case s: Tff_system_atomicContext => (Option[ParserRuleContext](s.system_constant).getOrElse(s.system_functor), s.tff_arguments)
+      case _                           => (null, null)
+    }
+    word(functor).map(f => (f, tffArguments(args)))
+  }
+
+  private def tffArguments(c: Tff_argumentsContext): Vector[Term] =
+    if (c == null) Vector.empty
+    else tffTerm(c.tff_term, c) +: c.comma_tff_term.asScala.toVector.map(t => tffTerm(t.tff_term, t))
+
+  private def tffType(c: ParserRuleContext, parent: ParserRuleContext): Type =
+    if (c == null) missing(parent, Element.Type)
+    else
+      gap(c).map(errorNode).getOrElse {
+        if (c.exception != null) incomplete(c, Element.Type)
+        else {
+          val sp = span(c)
+          c match {
+            case t: Tff_atomic_typeContext =>
+              if (t.txf_tuple_type != null) TupleType(typeList(t.txf_tuple_type.tff_type_list, t.txf_tuple_type), sp)
+              else if (t.variable != null) word(t.variable).fold[Type](incomplete(t, Element.Type))(TypeVariable(_, sp))
+              else if (t.type_functor != null)
+                word(t.type_functor).fold[Type](incomplete(t, Element.Type))(f => TypeApp(f, typeArguments(t.tff_type_arguments, t), sp))
+              else if (t.tff_atomic_type != null) tffType(t.tff_atomic_type, t) // parenthesised
+              else firstRule(t).flatMap(word).fold[Type](incomplete(t, Element.Type))(TypeApp(_, Vector.empty, sp)) // constant, defined type
+            case a: Atomic_typeContext => word(a).fold[Type](incomplete(a, Element.Type))(TypeApp(_, Vector.empty, sp)) // subtypes
+            case m: Tff_mapping_typeContext => MappingType(product(m.tff_unitary_type, m), tffType(m.tff_atomic_type, m), sp)
+            case q: Tf1_quantified_typeContext =>
+              if (q.type_quantifier == null || q.type_quantifier.getText != "!>") unsupported(q) // `?*`
+              else QuantifiedType(bindings(q.tff_variable_list, q), tffType(q.tff_monotype, q), sp)
+            // top-level, non-atomic, monotype and unitary types: chain rules and parentheses
+            case other => firstRule(other).fold[Type](incomplete(other, Element.Type))(tffType(_, other))
+          }
+        }
+      }
+
+  private def typeList(c: Tff_type_listContext, parent: ParserRuleContext): Vector[Type] =
+    if (c == null) Vector(missing(parent, Element.Type))
+    else {
+      val out = Vector.newBuilder[Type]
+      var l = c
+      while (l != null) { out += tffType(l.tff_top_level_type, l); l = l.tff_type_list }
+      out.result()
+    }
+
+  private def typeArguments(c: Tff_type_argumentsContext, parent: ParserRuleContext): Vector[Type] =
+    if (c == null) Vector(missing(parent, Element.Type))
+    else {
+      val out = Vector.newBuilder[Type]
+      var a = c
+      while (a != null) { out += tffType(a.tff_atomic_type, a); a = a.tff_type_arguments }
+      out.result()
+    }
+
+  /** The argument types of a mapping: one unitary type, or a parenthesised `*` chain, flattened. */
+  private def product(c: Tff_unitary_typeContext, parent: ParserRuleContext): Vector[Type] =
+    if (c == null || gap(c).isDefined || c.exception != null || c.tff_xprod_type == null) Vector(tffType(c, parent))
+    else xprod(c.tff_xprod_type)
+
+  private def xprod(c: Tff_xprod_typeContext): Vector[Type] =
+    if (c.tff_xprod_type != null) xprod(c.tff_xprod_type) :+ tffType(c.tff_atomic_type, c)
+    else product(c.tff_unitary_type, c) :+ tffType(c.tff_atomic_type, c)
+
+  private def unsupported(c: ParserRuleContext): Unsupported = {
+    val s = span(c)
+    Unsupported(RuleKind(c.getRuleIndex).name, s, s)
   }
 
   // ---- gaps and errors ----

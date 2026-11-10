@@ -7,7 +7,7 @@ Planned features of TPTpls, in no particular order. Current problems are listed 
   - [x] FOF: inconsistent use of a symbol (different arities, used both as predicate and as function),
         free variables.
   - [ ] CNF: inconsistent use of a symbol, as in FOF.
-  - [ ] TFF: uses of symbols checked against their declared types.
+  - [x] TFF: uses of symbols checked against their declared types.
   - [ ] TCF: uses of symbols checked against their declared types.
   - [ ] THF: uses of symbols checked against their declared types, including higher-order terms.
 - [ ] **Type-based completion**: suggestions that fit the type expected at the cursor, such as variables

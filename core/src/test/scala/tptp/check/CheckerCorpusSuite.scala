@@ -6,15 +6,17 @@ import scala.util.Using
 import tptp.analysis.{DiskSources, ProjectAnalyzer}
 import tptp.semantics.*
 
-/** The committed sample of valid TPTP FOF files must raise no checker errors. */
+/** The committed sample of valid TPTP files must raise no checker errors. */
 class CheckerCorpusSuite extends munit.FunSuite {
   private val root = Path.of("src/test/resources/corpus")
   private val checkerErrors = Set(DiagnosticCode.ArityMismatch, DiagnosticCode.PredicateFunctionClash,
-    DiagnosticCode.ConflictsInInclude, DiagnosticCode.FreeVariable, DiagnosticCode.InvalidRole)
+    DiagnosticCode.ConflictsInInclude, DiagnosticCode.FreeVariable, DiagnosticCode.InvalidRole, DiagnosticCode.TypeMismatch,
+    DiagnosticCode.ConflictingDeclaration, DiagnosticCode.TypeErrorsInInclude, DiagnosticCode.WrongTypeArguments,
+    DiagnosticCode.UndeclaredType, DiagnosticCode.UndeclaredSymbol, DiagnosticCode.MalformedType, DiagnosticCode.InvalidLetDefinition)
 
-  test("valid FOF problems and axioms raise no checker errors") {
+  test("valid problems and axioms raise no checker errors") {
     val files = Using.resource(Files.walk(root))(_.iterator.asScala.filter(Files.isRegularFile(_)).toVector.sortBy(_.toString))
-    assertEquals(files.size, 24, "the committed sample")
+    assertEquals(files.size, 37, "the committed sample")
     val project = ProjectAnalyzer(DiskSources, ResolutionEnv(Vector.empty, Some(root.toAbsolutePath)))
     val all = files.flatMap(f => project.analyzeRoot(f.toAbsolutePath).toVector.flatMap(_.diagnostics.map(f -> _)))
     val errors = all.filter { case (_, d) => checkerErrors(d.code) }

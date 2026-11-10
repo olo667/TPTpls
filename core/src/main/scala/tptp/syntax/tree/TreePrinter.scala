@@ -41,9 +41,25 @@ object TreePrinter {
       case n: Name              => s"Name ${quote(n.text)} ${s(n.span)}"
       case op: Op[?]            => s"Op ${op.kind} ${s(op.span)}"
       case r: FofRecord         => s"FofRecord ${s(r.span)}" + r.annotations.fold("")(a => s" annotations ${s(a)}")
+      case r: TffRecord         => s"TffRecord ${s(r.span)}" + r.annotations.fold("")(a => s" annotations ${s(a)}")
+      case d: TypeDeclaration   => s"TypeDeclaration ${s(d.span)}"
+      case t: TypeApp           => s"TypeApp ${s(t.span)}"
+      case t: TypeVariable      => s"TypeVariable ${s(t.span)}"
+      case t: MappingType       => s"MappingType ${s(t.span)}"
+      case t: QuantifiedType    => s"QuantifiedType ${s(t.span)}"
+      case t: TupleType         => s"TupleType ${s(t.span)}"
+      case t: FormulaTerm       => s"FormulaTerm ${s(t.span)}"
+      case t: Tuple             => s"Tuple ${s(t.span)}"
+      case l: Let               => s"Let ${s(l.span)}${o(l)}"
+      case d: LetDefinition     => s"LetDefinition ${s(d.span)}"
+      case v: VariableFormula   => s"VariableFormula ${s(v.span)}${o(v)}"
+      case d: Definition        => s"Definition ${s(d.span)}"
+      case t: Subtype           => s"Subtype ${s(t.span)}"
+      case u: Unsupported       => s"Unsupported ${u.rule} ${s(u.span)}${o(u)}"
       case r: Include           => s"Include ${s(r.span)}" + (if (r.selection.isDefined) " selection" else "")
       case r: OtherRecord       => s"OtherRecord ${r.language} ${s(r.span)}"
       case r: ErrorRecord       => s"ErrorRecord ${cause(r.cause)} ${s(r.span)} ${quote(r.message)}"
+      case b: VarBinding        => s"VarBinding ${s(b.span)}"
       case r: Role              => s"Role ${s(r.span)}" + r.detail.fold("")(d => s" detail ${s(d)}")
       case l: Logical           => s"Logical ${s(l.span)}"
       case q: Sequent           => s"Sequent ${s(q.span)} left ${q.left.size}"

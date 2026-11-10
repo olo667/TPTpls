@@ -8,7 +8,8 @@ enum Element(val label: String) {
   case Name extends Element("name")
   case Role extends Element("role")
   case FileName extends Element("file name")
-  /** Any other rule, named after it: "cnf literal", "thf top level type", "source". */
+  case Type extends Element("type")
+  /** Any other rule, named after it: "cnf literal", "source". */
   case Other(rule: String) extends Element(rule.replace('_', ' '))
 }
 
@@ -20,6 +21,7 @@ object Element {
     else if (name == "file_name") FileName
     else if (name.contains("formula")) Formula
     else if (name.contains("variable")) Variable
+    else if (name.contains("type")) Type // after "variable": tff_typed_variable
     else if (name.contains("term") || name.contains("argument")) Term
     else if (name == "name" || name.endsWith("_name")) Name
     else Other(name)

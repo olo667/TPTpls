@@ -54,7 +54,7 @@ class ParseFileSuite extends munit.FunSuite {
     // also in a variable list: the whole group is one error node among the variables
     first("fof(a,axiom,! [X @ @ @ @ Y] : p(X)).") match {
       case FofRecord(_, _, _, Logical(q: QuantifiedFormula, _), _, _, _) =>
-        assertEquals(q.vars.collect { case e: ErrorNode => causeAndSpan(e) }.map(_._2), Vector(Span(15, 26)))
+        assertEquals(q.vars.map(_.name).collect { case e: ErrorNode => causeAndSpan(e) }.map(_._2), Vector(Span(15, 26)))
       case other => fail(s"unexpected $other")
     }
   }
@@ -94,7 +94,7 @@ class ParseFileSuite extends munit.FunSuite {
   test("holes outside FOF formulas are named by their rule") {
     def messages(text: String) = SyntaxParser.parse(text).allErrors.map(_.message)
     assertEquals(messages("cnf(a,axiom,p | )."), Vector("missing cnf literal"))
-    assertEquals(messages("thf(a, type, c: )."), Vector("missing thf top level type"))
+    assertEquals(messages("thf(a, type, c: )."), Vector("missing type"))
     assertEquals(messages("fof(a,axiom,p, )."), Vector("missing source"))
   }
 

@@ -8,13 +8,16 @@ out="$(cd "$(dirname "$0")/.." && pwd)/core/src/test/resources/corpus"
 problems=(
   PUZ001+1 PUZ031+2 SYN000+1 SYN036+2 GRP001+6 GRP396+1 NUM006+1 NUM292+1
   KRS018+1 SWV010+1 ALG014+1 GEO080+1 SET002+4 SET016+1 SET580+3
+  # TFF: TF0, TF0 arithmetic (one with an include), TF0 syntax sample, TF1, overloading by arity,
+  # TXF ($o values; $let and $ite; the TXF syntax sample), NX0
+  PUZ130_1 ARI683_1 DAT111_1 SYN000_1 ITP209_4 SWX075_1 SWX228_1 SWX017_1 SYN000_4 GRA076_1.002
 )
 
 # Prints the text of a TPTP file shown on a SeeTPTP page (the <pre> block without HTML markup).
 fetch() {
   curl -sfL "https://tptp.org/cgi-bin/SeeTPTP?$1" \
     | sed -n '/<pre>/,/<\/pre>/p' | sed -e '1s/.*<pre>//' -e '$s/<\/pre>.*//' \
-    | sed -e 's/<[^>]*>//g' -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&quot;/"/g' -e 's/&amp;/\&/g'
+    | sed -e 's/<[^>]*>//g' -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&quot;/"/g' -e 's/&#34;/"/g' -e "s/&#39;/'/g" -e 's/&amp;/\&/g'
 }
 
 rm -rf "$out" && mkdir -p "$out"

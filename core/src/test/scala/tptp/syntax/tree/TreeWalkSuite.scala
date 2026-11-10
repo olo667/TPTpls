@@ -20,6 +20,14 @@ class TreeWalkSuite extends munit.FunSuite {
     "junk fof(g, axiom, p).",
     "thf(h, type, c: $i).",
     "include('x.ax', [a, b], sp).",
+    "tff(t, type, cons: !>[T: $tType]: ((T * list(T)) > list(T))).",
+    "tff(u, axiom, ! [X: $int, Y] : (p(X, Y) | {$box} @ (q))).",
+    "tff(v, type, f: (nat * ) > nat).",
+    "tff(w, axiom, ! [X: $o] : (X | p(q & r) | $let(c: $i, c := d, p(c)) | f([a, b]) = g)).",
+    "tff(x, axiom, f(a) == b).",
+    "tff(y, axiom, [p] --> [q]).",
+    "tff(z, axiom, nat << int).",
+    "tff(t2, type, g: [$i, $i] > $o).",
   )
 
   private def files: Vector[String] = {
@@ -61,7 +69,8 @@ class TreeWalkSuite extends munit.FunSuite {
 
   test("every concrete node class occurs, so none is left unchecked") {
     val expected = TreeWalkSuite.concrete[Formula] ++ TreeWalkSuite.concrete[Term] ++ TreeWalkSuite.concrete[Statement] ++
-      TreeWalkSuite.concrete[Record] ++ TreeWalkSuite.concrete[NameNode] ++ Vector("Op", "Role")
+      TreeWalkSuite.concrete[Record] ++ TreeWalkSuite.concrete[NameNode] ++ TreeWalkSuite.concrete[Type] ++
+      Vector("Op", "Role", "VarBinding", "LetDefinition")
     val seen = trees.map(_.getClass.getSimpleName).toSet
     assertEquals(expected.toSet -- seen, Set.empty[String])
   }
@@ -74,7 +83,7 @@ object TreeWalkSuite {
     case p: Mirror.ProductOf[T] => Vector(constValue[p.MirroredLabel])
   }
 
-  private inline def all[Ts <: Tuple]: Vector[String] = inline erasedValue[Ts] match {
+  private inline def all[Ts <: scala.Tuple]: Vector[String] = inline erasedValue[Ts] match {
     case _: EmptyTuple => Vector.empty
     case _: (t *: ts)  => concrete[t] ++ all[ts]
   }

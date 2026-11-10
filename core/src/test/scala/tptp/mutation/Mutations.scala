@@ -45,9 +45,10 @@ object Mutations {
   }
 
   /** The FOF files below `root`, split into those up to `maxBytes` and the larger ones (name, size). */
-  def paths(root: Path, limit: Int, maxBytes: Long): (Vector[Path], Vector[(String, Long)]) = {
+  /** `marker` is the file-name character of the language: `+` FOF, `_` TFF. */
+  def paths(root: Path, limit: Int, maxBytes: Long, marker: String = "+"): (Vector[Path], Vector[(String, Long)]) = {
     val all = Using.resource(Files.walk(root)) {
-      _.iterator.asScala.filter(p => Files.isRegularFile(p) && p.getFileName.toString.contains("+"))
+      _.iterator.asScala.filter(p => Files.isRegularFile(p) && p.getFileName.toString.contains(marker))
         .filter(p => p.toString.endsWith(".p") || p.toString.endsWith(".ax")).toVector
     }.sortBy(_.toString).take(limit)
     val (small, large) = all.partition(Files.size(_) <= maxBytes)

@@ -11,12 +11,13 @@ object FofChecker {
   /** A scope key no variable can have: marks a scope below a quantifier with a broken variable list. */
   private val Opaque = "?opaque"
 
-  def check(r: FofRecord): RecordCheck = {
+  def check(r: FofRecord): RecordCheck[SummaryItem.Formula] = {
     val walk = new Walk(r.errors.map(_.span))
     role(r.role).foreach(walk.diagnostics += _)
     r.statement match {
       case Logical(f, _)     => walk.formula(f, Map.empty)
       case Sequent(l, rs, _) => (l ++ rs).foreach(walk.formula(_, Map.empty))
+      case _: TypeDeclaration | _: Definition | _: Subtype => () // TFF only
     }
     RecordCheck(SummaryItem.Formula(r.name.valid, walk.uses.result()), walk.diagnostics.result())
   }
@@ -49,7 +50,7 @@ object FofChecker {
       case Equality(l, r, _, _)   => term(l, scope); term(r, scope)
       case Inequality(l, r, _, _) => term(l, scope); term(r, scope)
       case q @ QuantifiedFormula(_, vars, body, _, _) =>
-        val bindings = vars.flatMap(_.valid).map(n => new Binding(n))
+        val bindings = vars.flatMap(_.name.valid).map(n => new Binding(n))
         val varList = Span(q.span.start, math.max(q.span.start, body.outer.start))
         val opaque = errors.exists(e => within(e, varList))
         formula(body, scope ++ bindings.map(b => b.name.key -> b) ++ (if (opaque) Map(Opaque -> new Binding(Name(Opaque, q.span))) else Map.empty))
@@ -63,6 +64,7 @@ object FofChecker {
       case UnaryFormula(_, body, _, _)  => formula(body, scope)
       case BinaryFormula(_, l, r, _, _) => formula(l, scope); formula(r, scope)
       case _: ErrorNode                 => ()
+      case _: VariableFormula | _: Let | _: Unsupported => () // TFF only
     }
 
     def term(t: Term, scope: Map[String, Binding]): Unit = t match {
@@ -79,6 +81,7 @@ object FofChecker {
               s"variable `${name.text}` is not bound by a quantifier")
         }
       case _: DistinctObject | _: NumberTerm | _: ErrorNode => ()
+      case _: FormulaTerm | _: Tuple | _: Let | _: Unsupported => () // TFF only
     }
 
     private def definedWord(f: Name, allowed: Set[String]): Unit =

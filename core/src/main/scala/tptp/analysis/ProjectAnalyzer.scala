@@ -2,10 +2,10 @@ package tptp.analysis
 
 import java.nio.file.Path
 import scala.collection.mutable
-import tptp.check.{CheckedFile, IncludeFold, IncludesFold, ProblemChecker, SummaryItem}
+import tptp.check.{CheckedFile, Decl, IncludeFold, IncludesFold, ProblemChecker, ProblemDeclarations, Signature, SummaryItem, TffChecker, Ty, TypeProblem}
 import tptp.semantics.*
 import tptp.syntax.Span
-import tptp.syntax.tree.Include
+import tptp.syntax.tree.{Include, Name, TffRecord, TypeDeclaration}
 
 final case class RootAnalysis(file: FileAnalysis, diagnostics: Vector[Diagnostic])
 
@@ -34,6 +34,7 @@ final class ProjectAnalyzer(sources: SourceProvider, initialEnv: ResolutionEnv) 
     folds.clear()
     problemFolds.clear()
     closureInfo.clear()
+    includeChecks.clear()
   }
 
   def invalidate(path: Path): Unit = cache.remove(path)
@@ -74,10 +75,94 @@ final class ProjectAnalyzer(sources: SourceProvider, initialEnv: ResolutionEnv) 
   /** Analyses `path` and its include closure. */
   def analyzeRoot(path: Path): Option[RootAnalysis] =
     fileAnalysis(path).map { root =>
+      val folds = includesFold(root)
+      val decls = ProblemChecker.declarations(root.path, root.lines, root.tree.records, folds)
+      val axiomFile = root.path.getFileName.toString.endsWith(".ax")
+      val locate = (s: Span) => Location(root.path, s, root.lines)
+      var before = 0
+      val rootTypes = root.tree.records.zipWithIndex.flatMap {
+        case (_: Include, _)   => before += 1; Vector.empty
+        case (r: TffRecord, i) => TffChecker.typed(r, decls.at((before, 0, i)), axiomFile, locate).map(_.diagnostic)
+        case _                 => Vector.empty
+      }
       val extra = root.includes.flatMap(includeDiagnostics(root, _)) ++
-        ProblemChecker.check(checked(root), includesFold(root))
-      RootAnalysis(root, root.diagnostics ++ extra)
+        ProblemChecker.check(checked(root), folds) ++ ProblemChecker.declarationDiagnostics(decls) ++
+        typeErrorsInIncludes(root, decls)
+      RootAnalysis(root, root.diagnostics ++ extra ++ rootTypes)
     }
+
+  /** Per (target, selection, root): the stamps of the include's files, the outside declarations its check looked up
+    * (key → entries), and its type problems with their locations. */
+  private val includeChecks = mutable.Map.empty[(Path, Option[Set[String]], Path),
+    (Vector[(Path, Stamp)], Map[String, Vector[DeclKey]], Vector[(TypeProblem, Location)])]
+  private var includeChecksCount = 0
+
+  /** A declaration as a cache key: `Location` holds a `LineIndex`, which a re-analysed root replaces. */
+  private type DeclKey = (Name, Ty, Path, Span)
+  private def keyed(ds: Vector[Decl]): Vector[DeclKey] = ds.map(d => (d.symbol, d.ty, d.at.path, d.at.span))
+
+  /** How many include type checks were computed (not reused) so far. */
+  def includeChecksComputed: Int = includeChecksCount
+
+  /** One `TypeErrorsInInclude` per include line whose files have type errors or conflicting declarations. */
+  private def typeErrorsInIncludes(root: FileAnalysis, decls: ProblemDeclarations): Vector[Diagnostic] = {
+    val incs = root.summary.items.collect { case SummaryItem.IncludeAt(i) => i }
+    val conflicts = decls.includeConflicts
+    incs.zipWithIndex.flatMap { case (inc, j) =>
+      val problems = includeTypeProblems(root, decls, inc, j) ++ conflicts.getOrElse(j, Vector.empty)
+      Option.when(problems.nonEmpty)(ProblemChecker.typeErrorsInInclude(inc, problems))
+    }
+  }
+
+  /** The type problems of include `j`'s selected records, each checked against the declarations before it; reused
+    * while the include's files are unchanged and the outside declarations it looked up are the same. */
+  private def includeTypeProblems(root: FileAnalysis, decls: ProblemDeclarations, inc: Include, j: Int): Vector[(TypeProblem, Location)] =
+    root.includes.find(_.include eq inc).flatMap(_.target).toVector.flatMap { target =>
+      val selection = ProblemChecker.keys(inc)
+      val key = (target, selection, root.path)
+      val stamps = stampsOf(Vector(target), root.path)
+      val outside = decls.outside(j)
+      includeChecks.get(key).collect {
+        case (s, deps, ps) if s == stamps && deps.forall { case (k, ds) => keyed(outside(k)) == ds } => ps
+      }.getOrElse {
+        val looked = mutable.Map.empty[String, Vector[DeclKey]]
+        var seq = 0 // own selected declarations before the current record, in fold order
+        val ps = selectedTffRecords(target, selection, root.path).flatMap { case (a, r) =>
+          val view = decls.at((j, 1, seq))
+          val recording = new Signature {
+            def apply(k: String): Vector[Decl] = { looked.getOrElseUpdate(k, keyed(outside(k))); view(k) }
+            def later(k: String): Option[Decl] = view.later(k)
+          }
+          val found = TffChecker.typed(r, recording, axiomFile = false, s => Location(a.path, s, a.lines))
+            .map(p => (p, Location(a.path, p.diagnostic.span, a.lines)))
+          r.statement match {
+            case TypeDeclaration(s, _, _) if s.valid.isDefined => seq += 1
+            case _                                            => ()
+          }
+          found
+        }
+        includeChecksCount += 1
+        includeChecks(key) = (stamps, looked.toMap, ps)
+        ps
+      }
+    }
+
+  /** The TFF records of `target`'s closure that the selection keeps, in fold order, with their files. */
+  private def selectedTffRecords(target: Path, selection: Option[Set[String]], root: Path): Vector[(FileAnalysis, TffRecord)] = {
+    val out = Vector.newBuilder[(FileAnalysis, TffRecord)]
+    def visit(p: Path, sel: Option[Set[String]], stack: List[Path]): Unit = fileAnalysis(p).foreach { a =>
+      a.tree.records.foreach {
+        case r: TffRecord if sel.forall(s => r.name.valid.exists(n => s(n.key))) => out += ((a, r))
+        case i: Include =>
+          a.includes.find(_.include eq i).flatMap(_.target).filterNot(stack.contains).foreach { t =>
+            visit(t, ProblemChecker.combineSelections(sel, ProblemChecker.keys(i)), t :: stack)
+          }
+        case _ => ()
+      }
+    }
+    visit(target, selection, List(target, root))
+    out.result()
+  }
 
   /** All of `root`'s includes folded together, reused while its includes and their files are unchanged. */
   private def includesFold(root: FileAnalysis): IncludesFold = {
