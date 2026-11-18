@@ -54,7 +54,7 @@ object TypeMutations {
     val project = ProjectAnalyzer(sources, ResolutionEnv(Vector.empty, Some(tptpRoot)))
     val original = project.fileAnalysis(root).getOrElse(throw new IllegalArgumentException(s"cannot read $root"))
     val text = DiskSources.read(root).map(_._1).getOrElse(throw new IllegalArgumentException(s"cannot read $root"))
-    val rnd = new Random(seed * 7919L + root.toString.hashCode)
+    val rnd = new Random(seed * 7919L + tptpRoot.relativize(root).toString.hashCode) // the same in every checkout
     val mutants = TypeMutationKind.values.toVector.flatMap { kind =>
       rnd.shuffle(candidates(kind, text, original, project.includeClosure(root), rnd)).take(perKind)
     }
@@ -143,8 +143,9 @@ object TypeMutations {
       case Equality(l, r, _, _)                  => term(l, bound) ++ term(r, bound)
       case Inequality(l, r, _, _)                => term(l, bound) ++ term(r, bound)
       case QuantifiedFormula(_, vars, body, _, _) =>
+        val inScope = bound.map(_._1).toSet ++ vars.flatMap(_.name.valid).map(_.key)
         formula(body, bound.filterNot(b => vars.exists(_.name.valid.exists(_.key == b._1))) ++
-          vars.flatMap(v => v.name.valid.map(n => n.key -> v.ty.map(TffChecker.structural(_, Set.empty)))))
+          vars.flatMap(v => v.name.valid.map(n => n.key -> v.ty.map(TffChecker.structural(_, inScope)))))
       case UnaryFormula(_, body, _, _)           => formula(body, bound)
       case BinaryFormula(_, l, r, _, _)          => formula(l, bound) ++ formula(r, bound)
       case VariableFormula(n, _, _)              => Vector((n, bound))
@@ -173,9 +174,11 @@ object TypeMutations {
       val replacement = kind match {
         case TypeMutationKind.Unbind => Some("ZZunbound")
         case _ =>
-          // another variable bound with the same written type (both untyped in FOF)
+          // another variable bound with the same written type (both untyped in FOF); not a type variable, which
+          // other variables may be typed by
           val own = bound.find(_._1 == v.key).flatMap(_._2)
-          val others = bound.collect { case (k, t) if k != v.key && t == own => k }.distinct
+          val others = if (own.contains(Ty.Kind)) Vector.empty
+                       else bound.collect { case (k, t) if k != v.key && t == own => k }.distinct
           Option.when(others.nonEmpty)(others(rnd.nextInt(others.size)))
       }
       replacement.map(r => TypeMutant(kind, s"${kind.label}: '${v.text}' -> '$r' at ${v.span.start}", edit(text, v.span, r), v.span.start))

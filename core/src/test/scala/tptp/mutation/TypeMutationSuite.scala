@@ -17,4 +17,11 @@ class TypeMutationSuite extends munit.FunSuite {
     assert(violations.isEmpty, s"${violations.size} violations, e.g.\n${violations.take(20).mkString("\n")}")
     assert(missed.isEmpty, s"${missed.size} missed, e.g.\n${missed.take(20).mkString("\n")}")
   }
+
+  test("rebinding a type variable is no control: other variables may be typed by it") {
+    val file = tptpRoot.resolve("Problems/ITP/ITP209_4.p")
+    val controls = TypeMutations.run(tptpRoot, file, seed = 1, perKind = Int.MaxValue).filter(_.mutant.kind == TypeMutationKind.Rebind)
+    val violations = controls.flatMap(o => o.violations.map(v => s"${o.mutant.description}: $v"))
+    assert(violations.isEmpty, violations.mkString("\n"))
+  }
 }
