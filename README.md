@@ -1,7 +1,7 @@
 # TPTpls — a language server for TPTP
 
 An LSP server for the [TPTP](https://tptp.org) language, written in Scala 3.
-Status: v0.1 — syntax diagnostics, document outline, include resolution and include navigation. FOF type checking (symbol arities and kinds, variables, roles, defined words, duplicate names). TFF type checking (TF0, TF1 and TXF with arithmetic: declared types, overloading by arity, polymorphism, `$let`/`$ite`).
+Status: v0.2 — syntax diagnostics, document outline, include resolution and include navigation. FOF type checking (symbol arities and kinds, variables, roles, defined words, duplicate names). TFF type checking (TF0, TF1 and TXF with arithmetic: declared types, overloading by arity, polymorphism, `$let`/`$ite`).
 See the [roadmap](docs/ROADMAP.md) for planned features.
 
 ## Build and run
