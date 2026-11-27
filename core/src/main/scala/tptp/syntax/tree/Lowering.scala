@@ -62,7 +62,7 @@ object Lowering {
       Role(gap, None, gap.span)
     } else {
       val word = gap(c).map(errorNode).getOrElse {
-        val t = Option(c.Lower_word).map(_.getSymbol)
+        val t = Option(c.lower_word_token).filter(_.getChildCount == 1).map(_.getStart)
         t.filter(usable).map(t => Name(t.getText, AntlrTokens.span(t))).getOrElse(incomplete(c, Element.Role))
       }
       Role(word, Option(c.general_term).map(span), span(c))
@@ -135,19 +135,21 @@ object Lowering {
             QuantifiedFormula(Op(q, span(c.fof_quantifier)), variables(c.fof_variable_list, c), sub(c.fof_unit_formula, c), sp, sp)
           case c @ (_: Fof_plain_termContext | _: Fof_defined_plain_termContext | _: Fof_system_termContext) =>
             atom(c).fold(incomplete(c, Element.Formula)) { case (f, args) => AtomicFormula(f, args, sp, sp) }
+          case c: Tff_logic_formulaContext if c.tff_unit_formula.size > 1 || c.nonassoc_connective != null => tffChain(c)
+          case c: Tff_unit_formulaContext if c.bnf2antlr_tff_infix_tail != null =>
+            val tail = c.bnf2antlr_tff_infix_tail
+            val left = tffTerm(firstRule(c).orNull, c)
+            if (tail.exception != null || gap(tail).isDefined) incomplete(c, Element.Formula)
+            else if (tail.infix_inequality != null) Inequality(left, tffTerm(tail.tff_unitary_term, tail), sp, sp)
+            else Equality(left, tffTerm(tail.tff_unitary_term, tail), sp, sp)
+          case c: Bnf2antlr_tff_formula_termContext if c.tff_logic_formula != null => sub(c.tff_logic_formula, c).withOuter(sp)
+          case c: Bnf2antlr_tff_formula_termContext if c.variable != null =>
+            word(c.variable).fold[Formula](incomplete(c, Element.Formula))(n => VariableFormula(n, sp, sp))
           case c: Tff_unitary_formulaContext if c.tff_logic_formula != null => sub(c.tff_logic_formula, c).withOuter(sp)
-          case c: Tff_binary_pairContext =>
-            val connective = Option(c.nonassoc_connective).flatMap(n => BinaryConnective.fromText(n.getText).map(Op(_, span(n))))
-            connective.fold(incomplete(c, Element.Formula))(op =>
-              BinaryFormula(op, sub(c.tff_unit_formula(0), c), sub(c.tff_unit_formula(1), c), sp, sp))
-          case c: Tff_or_formulaContext  => list(c, Option(c.tff_or_formula), c.tff_unit_formula.asScala.toVector, BinaryConnective.Or)
-          case c: Tff_and_formulaContext => list(c, Option(c.tff_and_formula), c.tff_unit_formula.asScala.toVector, BinaryConnective.And)
           case c: Tff_prefix_unaryContext if c.tff_unary_connective == null => incomplete(c, Element.Formula)
           case c: Tff_prefix_unaryContext =>
             if (c.tff_unary_connective.unary_connective == null) unsupported(c) // an NX0 connective
             else UnaryFormula(Op(UnaryConnective.Not, span(c.tff_unary_connective)), sub(c.tff_preunit_formula, c), sp, sp)
-          case c: Tff_infix_unaryContext   => Inequality(tffTerm(c.tff_unitary_term(0), c), tffTerm(c.tff_unitary_term(1), c), sp, sp)
-          case c: Tff_defined_infixContext => Equality(tffTerm(c.tff_unitary_term(0), c), tffTerm(c.tff_unitary_term(1), c), sp, sp)
           case c: Tff_quantified_formulaContext if c.tff_quantifier == null => incomplete(c, Element.Formula)
           case c: Tff_quantified_formulaContext =>
             if (c.tff_quantifier.fof_quantifier == null) unsupported(c) // `#`
@@ -177,6 +179,23 @@ object Lowering {
       case None         => (sub(units.headOption.orNull, c), units.lift(1))
     }
     op.fold(incomplete(c, Element.Formula))(BinaryFormula(_, l, sub(r.orNull, c), span(c), span(c)))
+  }
+
+  /** `a | b | c`, `a & b` or `a => b` in the factored TFF grammar (a unit, then operators each followed by a unit):
+    * nested to the left as in FOF, each node spanning from the first unit to its right operand. */
+  private def tffChain(c: Tff_logic_formulaContext): Formula = {
+    val children = c.children.asScala.toVector
+    val first = sub(c.tff_unit_formula(0), c)
+    children.indices.drop(1).filterNot(i => children(i).isInstanceOf[Tff_unit_formulaContext]).foldLeft(first) { (left, i) =>
+      val (connective, opSpan) = children(i) match {
+        case n: Nonassoc_connectiveContext => (BinaryConnective.fromText(n.getText), span(n))
+        case t: TerminalNode               => (BinaryConnective.fromText(t.getText), AntlrTokens.span(t.getSymbol))
+        case other                         => (None, left.outer)
+      }
+      val right = children.lift(i + 1).collect { case u: Tff_unit_formulaContext => u }
+      val sp = left.outer.cover(right.fold(opSpan)(span))
+      connective.fold(incomplete(c, Element.Formula))(op => BinaryFormula(Op(op, opSpan), left, sub(right.orNull, c), sp, sp))
+    }
   }
 
   private def variables(c: Fof_variable_listContext, parent: ParserRuleContext): Vector[VarBinding] =

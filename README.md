@@ -82,24 +82,18 @@ This is an alpha. Known problems, to be addressed in later versions:
 - **Some repairs are imprecise.** A deleted `)` is often reported at a later position where it would
   also fit; a wrong operator (`p § q`, `~ [X]` instead of `! [X]`) is reported with ANTLR's generic
   messages, or as two unexpected tokens.
-- **Record keywords cannot be used as names.** The grammar (converted automatically from the TPTP
-  BNF) makes `fof`, `cnf`, `thf`, `tff`, `tcf`, `tpi`, `include`, `file`, `inference`, `introduced` and
-  `$thf`, `$tff`, `$fof`, `$cnf`, `$fot`, `$let` separate tokens, so `p(file)` is reported as an error
-  although it is valid TPTP (`Axioms/CSR003+2.ax`, `Axioms/BIO001+0.ax`). To be fixed in the converter.
 - **A closed document can keep its diagnostics** if its analysis finishes at the moment it is closed.
 - **Settings pulled via `workspace/configuration` are not re-read** when the client reports a change;
   restart the server after changing `tptpRoot`, which also cannot be unset once set.
 - The "cannot find included file" message can list the same directory twice.
 - Only `file:` documents are analysed; unsaved, untitled buffers get no diagnostics.
-- Comments are skipped by the grammar (no hover or folding).
+- Comments are dropped after lexing (no hover or folding); the grammar keeps them on a hidden channel.
 - **Very large records are slow to re-check.** A single record of several hundred KB (e.g. the LCL
   modal-logic encodings, up to 250 KB per formula) takes seconds to parse, and longer when broken.
-- **Nested TFF formulas parse slowly.** For a parenthesised formula, ANTLR scans ahead to the closing `)`
-  before it can choose a grammar alternative, once for every enclosing level, so parsing time grows
-  quadratically with nesting depth. `ANA143_1.004.064.p` (40 KB) takes about 20 s to open and `ITP020_5.p`
-  with 14 MB of includes about 4 minutes; edits inside such records are slow too. FOF is affected only by
-  formulas nested in their first operand. A left-factored grammar parses `ITP020_5.p`'s includes in about
-  1 s instead of 130 s; it is to come from the grammar converter.
+- **FOF formulas nested in their first operand parse slowly.** For `((p & q) & r) & …`, ANTLR scans
+  ahead through the left operand before it can choose a grammar alternative, once for every level, so
+  parsing time grows quadratically with this kind of nesting. The grammar converter's postprocessor
+  left-factors only the TFF formula rules; FOF (and THF) are to follow.
 - **NX0 (non-classical TFF) is not type-checked.** Records with modal connectives or atoms, and `logic`
   specifications, are parsed and outlined but get no type or `$`-word checks.
 - **Undeclared symbols used as terms may be `$i` or `$o`.** TPTP gives them the default type `$i`, but TXF
@@ -111,9 +105,11 @@ This is an alpha. Known problems, to be addressed in later versions:
 
 ## Grammar
 
-`core/src/main/antlr4/TPTP.g4` is generated from the TPTP BNF (SyntaxBNF-v9.3.1.6, vendored next to it) by the BNF-to-ANTLR
-meta-grammar converter (`TPTP.g4` at commit `ddddcc5` in jzxia/TPTP_SyntaxBNF) and used unedited. Problems are
-fixed in the converter, not locally.
+`core/src/main/antlr4/TPTP.g4` is generated from the TPTP BNF (SyntaxBNF-v10.0.0.1, vendored next to it) by the
+BNF-to-ANTLR meta-grammar converter and its TFF postprocessor, which left-factors the TFF formula rules so that parsing
+time grows linearly with formula nesting (`TPTP_optimized.g4` at commit `0372bbc` in jzxia/TPTP_SyntaxBNF, branch
+`feat__BNF2ANTLR_postprocessor`, named `TPTP` as the postprocessor names its output). It is used unedited. Problems
+are fixed in the converter, not locally.
 
 Files of the TPTP library that still fail to parse are listed in
 `core/src/test/resources/corpus-known-failures.txt`.

@@ -3,12 +3,13 @@ package tptp.syntax
 import org.antlr.v4.runtime.{BaseErrorListener, CharStreams, LexerNoViableAltException, RecognitionException, Recognizer, Token as AntlrToken}
 import tptp.syntax.generated.TPTPLexer
 
-/** Comments are skipped by the grammar, so only default-channel tokens remain. */
+/** Only default-channel tokens: the grammar puts comments on the hidden channel. */
 final case class LexResult(tokens: Vector[AntlrToken], errors: Vector[SyntaxError])
 
 /** Tokens are produced while `tokens` is iterated; `errors` is complete once it is exhausted. */
 final class LexStream private[syntax] (lexer: TPTPLexer, collected: scala.collection.mutable.ArrayBuffer[SyntaxError]) {
   val tokens: Iterator[AntlrToken] = Iterator.continually(lexer.nextToken()).takeWhile(_.getType != AntlrToken.EOF)
+    .filter(_.getChannel == AntlrToken.DEFAULT_CHANNEL)
   def errors: Vector[SyntaxError] = collected.toVector
 }
 
